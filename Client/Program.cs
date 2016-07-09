@@ -42,12 +42,12 @@ namespace Client
 					IpAddress = "192.168.1.64",
 					Port = InvokerServer.DefaultPort
 				});
-			
+			/*
 				coordination_server.AddInvokeServer(new Node()
 				{
 					IpAddress = "192.168.1.4",
 					Port = InvokerServer.DefaultPort
-				});
+				});*/
 				
 				while (true)
 				{
