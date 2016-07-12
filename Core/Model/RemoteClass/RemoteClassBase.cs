@@ -35,13 +35,13 @@ namespace Core.Model.RemoteClass
 		{
 			var class_name = typeof(T).FullName;
 			T obj;
-			if (node.IpAddress.Equals(ServerBase.GetLocalIpAddress()) && ServerBase.Services.ContainsKey(class_name))
+			/*if (node.IpAddress.Equals(ServerBase.GetLocalIpAddress()) && ServerBase.Services.ContainsKey(class_name))
 			{
 				obj = (T) ServerBase.Services[class_name];
 				obj.IsStatic = true;
 			}
 			else
-			{
+			{*/
 				var str = String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof (T).FullName);
 				lock (StaticConnects)
 				{
@@ -56,8 +56,8 @@ namespace Core.Model.RemoteClass
 						StaticConnects.Add(str, obj);
 					}
 				}
-			}
-			obj.Ping();
+			//}
+			//obj.Ping();
 			return obj;
 		}
 
@@ -65,10 +65,10 @@ namespace Core.Model.RemoteClass
 		{
 			var class_name = typeof(T).FullName;
 
-			if (node.IpAddress.Equals(ServerBase.GetLocalIpAddress()) && ServerBase.Services.ContainsKey(class_name))
+			/*if (node.IpAddress.Equals(ServerBase.GetLocalIpAddress()) && ServerBase.Services.ContainsKey(class_name) && ServerBase.Services[class_name].Port == node.Port)
 			{
 				return (T)ServerBase.Services[class_name];
-			}
+			}*/
 			
 			var o = StaticConnect<RemoteClassBase>(node);//(RemoteClassBase)RemotingServices.Connect(typeof(RemoteClassBase), String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof(RemoteClassBase).FullName));
 			var guid = o.RegisterNewObject<T>();

@@ -23,11 +23,11 @@ namespace Core.Model.Client
 		{
 			_remoteInvoker = RemoteClassBase.Connect<RemoteInvoker>(ip_address, port);
 		}
-
+		/*
 		public object Invoke(string path, string type_name, string method_name, object[] param)
 		{
 			return _remoteInvoker.Invoke(path, type_name, method_name, param);
-		}
+		}*/
 		/*
 		public Data Invoke(InvokePacket invoke_packet)
 		{
@@ -58,7 +58,7 @@ namespace Core.Model.Client
 		{
 			try
 			{
-				_remoteInvoker.Ping();
+				//_remoteInvoker.Ping();
 				return _remoteInvoker.GetData(guid);
 			}
 			catch (Exception e)

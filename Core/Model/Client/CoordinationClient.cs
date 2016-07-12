@@ -21,6 +21,7 @@ namespace Core.Model.Client
 
 		public CoordinationClient(Node node)
 		{
+			Node = node;
 			_remoteCoordinator = RemoteClassBase.StaticConnect<RemoteCoordinator>(node);
 		}
 

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,39 +11,81 @@ using Core.Model.DataPacket;
 
 namespace Core.Model.RemoteClass
 {
+	public class ResultItem
+	{
+		public Data Data { get; set; }
+		public ManualResetEvent ManualResetEvent { get; set; }
+	}
+	
+	/// <summary>
+	/// Клас для обмена данными с вычислительным узлом.
+	/// </summary>
 	public class RemoteInvoker : RemoteClassBase
 	{
-		private Dictionary<Guid, Data> _result = new Dictionary<Guid, Data>();
-		private Dictionary<Guid, Task> _inProcess = new Dictionary<Guid, Task>();
+		public ConcurrentDictionary<Guid, ResultItem> Results = new ConcurrentDictionary<Guid, ResultItem>();
+		
+		public ConcurrentDictionary<Guid, Data> _result = new ConcurrentDictionary<Guid, Data>();
+	//	public ConcurrentDictionary<Guid, Task> _inProcess = new ConcurrentDictionary<Guid, Task>();
+		public ConcurrentDictionary<Guid, ManualResetEvent> _waitResult = new ConcurrentDictionary<Guid, ManualResetEvent>();
 
-		public object Invoke(string path, string type_name, string method_name, object[] param)
+		
+		//private BlockingCollection<Dictionary<Guid, Data>> 
+		public ConcurrentQueue<InvokePacket> InvokeQueue = new ConcurrentQueue<InvokePacket>();
+
+		public Action RunQueueExecutor;
+
+		public void EnqueuePacket(InvokePacket invoke_packet)
 		{
-			var a = Assembly.LoadFrom(path);
-			var t = a.GetType(type_name);
-			var m = t.GetMethod(method_name);
-			var obj = Activator.CreateInstance(t);
-			return m.Invoke(obj, param);
+			InvokeQueue.Enqueue(invoke_packet);
+			if (RunQueueExecutor != null)
+			{
+				RunQueueExecutor.Invoke();
+			}
 		}
 
 		public void Invoke(InvokePacket invoke_packet)
 		{
-			Console.WriteLine("Получен пакет для вызова метода {0}", invoke_packet.InvokeMethod.MethodName);
-			
-			var t = new Task(() =>
+			//Console.WriteLine("Получен пакет для вызова метода {0}", invoke_packet.InvokeMethod.MethodName);
+			var ta = Results.TryAdd(invoke_packet.Guid, new ResultItem()
+			{
+				Data = new Data(invoke_packet.Guid),
+				ManualResetEvent = new ManualResetEvent(false)
+			});
+			EnqueuePacket(invoke_packet);
+
+		/*	var t = new Task(() =>
 			{
 				try
 				{
-					var value = Invoke(invoke_packet.InvokeMethod.Path, invoke_packet.InvokeMethod.TypeName, invoke_packet.InvokeMethod.MethodName,
-					invoke_packet.InputParams.ToList().Select(x => x.Value).ToArray());
+					object[] input_params = invoke_packet.InputParams.ToList().Select(x =>
+					{
+						// Данные уже готовы к использованию.
+						if (x.HasValue)
+						{
+							return x.Value;
+						}
+						
+						try
+						{
+							// Данные находятся на этом сервере.
+							return GetData(x.Guid).Value;
+						}
+						catch (Exception)
+						{
+							// Данные находятся на удаленном сервере.
+							return x.Value;
+						}
+					}).ToArray();
+
+					var value = Invoke(invoke_packet.InvokeMethod.Path, invoke_packet.InvokeMethod.TypeName, invoke_packet.InvokeMethod.MethodName, input_params);
 
 					var data = new Data(invoke_packet.Guid, value);
 					Console.WriteLine("Получен результат {0}", value);
-					lock (_result)
-					lock (_inProcess)
-					{
-						_inProcess.Remove(invoke_packet.Guid);
-						_result.Add(invoke_packet.Guid, data);
-					}
+
+					Task ta;
+					_result.TryAdd(invoke_packet.Guid, data);
+					_inProcess.TryRemove(invoke_packet.Guid, out ta);
+					
 				}
 				catch (Exception e)
 				{
@@ -51,57 +95,82 @@ namespace Core.Model.RemoteClass
 				
 			});
 
-			lock (_inProcess)
-			{
-				_inProcess.Add(invoke_packet.Guid, t);
-			}
-			t.Start();
+			
+			_inProcess.TryAdd(invoke_packet.Guid, t);
+			t.Start();*/
 		}
 
 		public Data GetData(Guid guid)
 		{
-			Console.WriteLine("Получен запрос на получение данных {0}", guid);
+			//Console.WriteLine("Получен запрос на получение данных {0}", guid);
+		/*	ManualResetEvent mr;
+			if (_waitResult.ContainsKey(guid))
+			{
+				mr = _waitResult[guid];
+			}
+			else
+			{
+				mr = new ManualResetEvent(false);
+				_waitResult.TryAdd(guid, mr);
+			}*/
+
+			ManualResetEvent me;
+			ResultItem result;
+			if (!Results.ContainsKey(guid))
+			{
+				me = new ManualResetEvent(false);
+				
+				result = new ResultItem()
+				{
+					Data = new Data(guid),
+					ManualResetEvent = me
+				};
+				var ta = Results.TryAdd(guid, result);
+				//throw new Exception(string.Format("Данных с id {0} нет.", guid));
+			}
+			else
+			{
+				result = Results[guid];
+			}
+			result.ManualResetEvent.WaitOne();
+
+			//Console.WriteLine("Отправлен результат {0}", result.Data.Value);
+			return result.Data;
+
 			
+/*
 			ManualResetEvent mr;
 			Task t;
-			lock (_result)
+			
+			if (_result.ContainsKey(guid))
 			{
-				if (_result.ContainsKey(guid))
+				return _result[guid];
+			}
+				
+			if (_inProcess.ContainsKey(guid))
+			{
+				t = _inProcess[guid];
+				mr = new ManualResetEvent(false);
+				t.ContinueWith(task =>
 				{
-					return _result[guid];
-				}
-
-
-				lock (_inProcess)
-				{
-					if (_inProcess.ContainsKey(guid))
-					{
-						t = _inProcess[guid];
-						mr = new ManualResetEvent(false);
-						t.ContinueWith(task =>
-						{
-							mr.Set();
-						});
-					}
-					else
-					{
-						throw new Exception(string.Format("Данные с идентификатором {0} отсутствуют.", guid));
-					}
-				}
+					mr.Set();
+				});
+			}
+			else
+			{
+				throw new Exception(string.Format("Данные с идентификатором {0} отсутствуют.", guid));
 			}
 
 			mr.WaitOne();
-			t.Wait();
-			lock (_result)
+
+			
+			if (_result.ContainsKey(guid))
 			{
-				if (_result.ContainsKey(guid))
-				{
-					Console.WriteLine("Отправлен результат {0}", _result[guid]);
-					return _result[guid];
-				}
+				Console.WriteLine("Отправлен результат {0}", _result[guid]);
+				return _result[guid];
 			}
 
-			throw new Exception("Непредвиденная ошибка!");
+			throw new Exception("Непредвиденная ошибка!");*/
 		}
 
 

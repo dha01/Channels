@@ -14,6 +14,9 @@ namespace Core.Model.Server
 {
 	public class ServerBase : IDisposable
 	{
+		protected const string BROADCAST_ADDRESS = "224.0.0.0";
+		protected const int BROADCAST_PORT = 2500;
+		
 		public int Port { get; set; }
 		
 		public static Dictionary<string, RemoteClassBase> Services = new Dictionary<string, RemoteClassBase>();
@@ -80,6 +83,24 @@ namespace Core.Model.Server
 					IpAddress = GetLocalIpAddress(),
 					Port = Port
 				};
+			}
+		}
+
+		public void UdpPing()
+		{
+			try
+			{
+				var sender = new UdpClient(1234);
+				sender.Connect(BROADCAST_ADDRESS, BROADCAST_PORT);
+
+				var local_node = Node;
+				var message = Encoding.ASCII.GetBytes(string.Format("{0}:{1}:{2}", GetType().Name, local_node.IpAddress, local_node.Port));
+				sender.Send(message, message.Length);
+				sender.Close();
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine(e.Message);
 			}
 		}
 

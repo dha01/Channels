@@ -12,6 +12,8 @@ namespace Core.Model.Client
 	{
 		private RemoteClassBase _remoteClassBase;
 
+		public Node Node { get; set; }
+
 		public ClientBase()
 		{
 
@@ -19,12 +21,18 @@ namespace Core.Model.Client
 
 		public ClientBase(Node node)
 		{
+			Node = node;
 			_remoteClassBase = RemoteClassBase.Connect<RemoteClassBase>(node);
 		}
 
 		public ClientBase(string ip_address, int port)
+			: this(new Node()
+			{
+				IpAddress = ip_address,
+				Port = port
+			})
 		{
-			_remoteClassBase = RemoteClassBase.Connect<RemoteClassBase>(ip_address, port);
+
 		}
 
 		public bool Ping()

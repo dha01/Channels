@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Core.Model.Client;
 using Core.Model.Server;
 
@@ -81,6 +82,16 @@ namespace Core.Model.DataPacket
 			HasValue = true;
 			_value = value;
 		}
+
+		public static implicit operator Data(int obj)
+		{
+			return new DataValue(obj);
+		}
+
+		public static implicit operator int(Data obj)
+		{
+			return (int)obj.Value;
+		}
 	}
 
 	/// <summary>
@@ -146,8 +157,9 @@ namespace Core.Model.DataPacket
 	[Serializable]
 	public class DataValue<T> : Data<T>
 	{
-		public bool IsEndOwner { get; set; }
 		public Node OwnerNode { get; set; }
+
+		public Node SenderNode { get; set; }
 		
 		public DataValue(Guid guid)
 			: base(guid)
@@ -177,34 +189,19 @@ namespace Core.Model.DataPacket
 				}
 
 				// Известен конечный владелец данных.
-				if (IsEndOwner)
+				if (OwnerNode != null)
 				{
-					if (OwnerNode == null)
-					{
-						OwnerNode = new Node
-						{
-							IpAddress = ServerBase.GetLocalIpAddress(),
-							Port = InvokerServer.DefaultPort
-						};
-					}
-
 					using (var ic = new InvokerClient(OwnerNode))
 					{
-						return (T)ic.GetData(Guid).Value;
+						Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
+						_value = (T)ic.GetData(Guid).Value;
+						HasValue = true;
+						return (T)_value;
 					}
-				}
-
-				if (OwnerNode == null)
-				{
-					OwnerNode = new Node
-					{
-						IpAddress = ServerBase.GetLocalIpAddress(),
-						Port = CoordinationServer.DefaultPort
-					};
 				}
 
 				// Необходимо узнать конечного владельца данных .
-				using (var cc = new CoordinationClient(OwnerNode))
+				using (var cc = new CoordinationClient(SenderNode))
 				{
 					var data = cc.GetData(Guid);
 
@@ -214,7 +211,10 @@ namespace Core.Model.DataPacket
 
 						using (var ic = new InvokerClient(data_info.OwnerNode))
 						{
-							return (T)ic.GetData(data_info.Guid).Value;
+							Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
+							_value = (T)ic.GetData(data_info.Guid).Value;
+							HasValue = true;
+							return (T)_value;
 						}
 					}
 				}
@@ -247,35 +247,64 @@ namespace Core.Model.DataPacket
 
 			return new DataValue(obj.Guid);
 		}
+		/*
+		public static implicit operator DataValue<T>(DataValue<T> obj)
+		{
+			return new DataValue<T>(obj);
+		}
 
 		public static implicit operator DataValue<T>(T obj)
 		{
 			return new DataValue<T>(obj);
+		}*/
+
+		public static implicit operator T(DataValue<T> obj)
+		{
+			return obj.Value;
 		}
 	}
 
 	[Serializable]
 	public class DataValue : Data
 	{
-		public bool IsEndOwner { get; set; }
+		/// <summary>
+		/// Вычислительный узел с результатами вычисления.
+		/// </summary>
 		public Node OwnerNode { get; set; }
+
+		/// <summary>
+		/// Узел отправителя.
+		/// </summary>
+		public Node SenderNode { get; set; }
 		
 		public DataValue(Guid guid)
 			: base(guid)
 		{
-
+			SenderNode = new Node
+			{
+				IpAddress = ServerBase.GetLocalIpAddress(),
+				Port = CoordinationServer.DefaultPort
+			};
 		}
 
 		public DataValue(Guid guid, object value)
 			: base(guid, value)
 		{
-
+			SenderNode = new Node
+			{
+				IpAddress = ServerBase.GetLocalIpAddress(),
+				Port = CoordinationServer.DefaultPort
+			};
 		}
 
 		public DataValue(object value)
 			: base(value)
 		{
-
+			SenderNode = new Node
+			{
+				IpAddress = ServerBase.GetLocalIpAddress(),
+				Port = CoordinationServer.DefaultPort
+			};
 		}
 
 		public override object Value
@@ -288,34 +317,19 @@ namespace Core.Model.DataPacket
 				}
 
 				// Известен конечный владелец данных.
-				if (IsEndOwner)
+				if (OwnerNode != null)
 				{
-					if (OwnerNode == null)
-					{
-						OwnerNode = new Node
-						{
-							IpAddress = ServerBase.GetLocalIpAddress(),
-							Port = InvokerServer.DefaultPort
-						};
-					}
-
 					using (var ic = new InvokerClient(OwnerNode))
 					{
-						return ic.GetData(Guid).Value;
+						Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
+						_value = ic.GetData(Guid).Value;
+						HasValue = true;
+						return _value;
 					}
-				}
-
-				if (OwnerNode == null)
-				{
-					OwnerNode = new Node
-					{
-						IpAddress = ServerBase.GetLocalIpAddress(),
-						Port = CoordinationServer.DefaultPort
-					};
 				}
 
 				// Необходимо узнать конечного владельца данных .
-				using (var cc = new CoordinationClient(OwnerNode))
+				using (var cc = new CoordinationClient(SenderNode))
 				{
 					var data = cc.GetData(Guid);
 
@@ -325,7 +339,10 @@ namespace Core.Model.DataPacket
 
 						using (var ic = new InvokerClient(data_info.OwnerNode))
 						{
-							return ic.GetData(data_info.Guid).Value;
+							Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
+							_value = ic.GetData(data_info.Guid).Value;
+							HasValue = true;
+							return _value;
 						}
 					}
 				}
@@ -342,6 +359,11 @@ namespace Core.Model.DataPacket
 		public static implicit operator DataValue(int obj)
 		{
 			return new DataValue(obj);
+		}
+
+		public static implicit operator int(DataValue obj)
+		{
+			return (int)obj.Value;
 		}
 	}
 }

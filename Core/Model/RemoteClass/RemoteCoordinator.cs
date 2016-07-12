@@ -9,13 +9,28 @@ using Core.Model.Server;
 
 namespace Core.Model.RemoteClass
 {
+	/// <summary>
+	/// Класс для обмена данными с удаленным координационным узлом.
+	/// </summary>
 	public class RemoteCoordinator : RemoteClassBase
 	{
+		#region Fields
+
+		/// <summary>
+		/// Список доступных вычислитльных узлов.
+		/// </summary>
 		public List<Node> CalculativeServerList = new List<Node>();
 
+		private Dictionary<Node, InvokerClient> _invokerClients = new Dictionary<Node, InvokerClient>();
+
+		/// <summary>
+		/// Список результатов вычислений.
+		/// </summary>
 		private Dictionary<Guid, Node> _resultInfo = new Dictionary<Guid, Node>();
 
 		private static Random rand = new Random(DateTime.Now.Millisecond);
+
+		#endregion
 
 		private Node SelectNode()
 		{
@@ -28,35 +43,52 @@ namespace Core.Model.RemoteClass
 			return CalculativeServerList[index];
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="invoke_packet"></param>
 		public void SentToInvoke(InvokePacket invoke_packet)
 		{
+			InvokerClient ic;
 			var node = SelectNode();
-			using (var ic = new InvokerClient(node))
+			lock (_invokerClients)
 			{
-				foreach (var param in invoke_packet.InputParams)
+				if (!_invokerClients.ContainsKey(node))
 				{
-					lock (_resultInfo)
-					{
-						if (_resultInfo.ContainsKey(param.Guid))
-						{
-							param.OwnerNode = _resultInfo[param.Guid];
-							param.IsEndOwner = true;
-							continue;
-						}
-					}
-					
-					param.OwnerNode = new Node { IpAddress = ServerBase.GetLocalIpAddress(), Port = CoordinationServer.DefaultPort};
-					param.IsEndOwner = false;
+					_invokerClients.Add(node, new InvokerClient(node));
 				}
-				
+
+				ic = _invokerClients[node];
+			}
+
+			foreach (var param in invoke_packet.InputParams)
+			{
 				lock (_resultInfo)
 				{
-					_resultInfo.Add(invoke_packet.Guid, node);
+					if (_resultInfo.ContainsKey(param.Guid))
+					{
+						param.OwnerNode = _resultInfo[param.Guid];
+						continue;
+					}
 				}
-				ic.Invoke(invoke_packet);
+
+				param.OwnerNode = node;
 			}
+				
+			lock (_resultInfo)
+			{
+				_resultInfo.Add(invoke_packet.Guid, node);
+			}
+
+			//Console.WriteLine("Данные с id {0} будут на сервере {1}:{2}", invoke_packet.Guid, node.IpAddress, node.Port);
+			ic.Invoke(invoke_packet);
 		}
 
+		/// <summary>
+		/// Возвращает результат вычисления с идентификатором<value>guid</value>
+		/// </summary>
+		/// <param name="guid"></param>
+		/// <returns></returns>
 		public DataBase GetData(Guid guid)
 		{
 			int count = 0;

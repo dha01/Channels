@@ -42,7 +42,7 @@ namespace Model
 		
 		public Bot()
 		{
-			Console.WriteLine("Created!");
+			//Console.WriteLine("Created!");
 		}
 
 		public int SetAssembly(int a)
@@ -58,7 +58,7 @@ namespace Model
 
 			Count++;
 			SCount++;
-			Console.WriteLine(a + b + c);
+			//Console.WriteLine(a + b + c);
 			return a + b + c;
 		}
 

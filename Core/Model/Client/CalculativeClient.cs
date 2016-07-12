@@ -41,10 +41,10 @@ namespace Core.Model.Client
 			
 			var result = new DataValue<T>(invoke_packet.Guid);
 
-			Task.Run(() =>
-			{
+		/*	Task.Run(() =>
+			{*/
 				_coordinationClient.SentToInvoke(invoke_packet);
-			});
+			//});
 
 			return result;
 		}
