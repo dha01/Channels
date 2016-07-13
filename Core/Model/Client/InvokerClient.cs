@@ -46,12 +46,6 @@ namespace Core.Model.Client
 		public void Invoke(InvokePacket invoke_packet)
 		{
 			_remoteInvoker.Invoke(invoke_packet);
-			/*var task = new Task<T>(() =>
-			{
-				Data.WaitAll(input_params);
-				return (T)_remoteInvoker.Invoke(invoke_packet);
-			});*/
-			//return new DataValue<T>(invoke_packet.Guid);
 		}
 
 		public Data GetData(Guid guid)

@@ -1,23 +1,38 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Core.Model.DataPacket;
-using Core.Model.RemoteClass;
 using Core.Model.Server;
 
 namespace Core.Model.Client
 {
+	/// <summary>
+	/// Клиент для выполнения вычислений.
+	/// </summary>
 	public class CalculativeClient : ClientBase
 	{
+		#region Fields
 
-		public List<Node> Services = new List<Node>();
+		/// <summary>
+		/// Клиент для координационного сервера.
+		/// </summary>
+		private readonly CoordinationClient _coordinationClient;
 
-		private CoordinationClient _coordinationClient;
+		/// <summary>
+		/// Временный координационный сервер. 
+		/// </summary>
+		private readonly CoordinationServer _tmpCoordinationServer;
 
-		private CoordinationServer _tmpCoordinationServer;
+		/// <summary>
+		/// Очередь отправки на исполнение.
+		/// </summary>
+		private readonly QueueInvoker<InvokePacket> _sentToInvokeQueue;
 
+		#endregion
+
+		#region Constructor
+
+		/// <summary>
+		/// Создает экземпляр класса для клиента выполнения вычислений.
+		/// </summary>
 		public CalculativeClient()
 		{
 			try
@@ -29,8 +44,21 @@ namespace Core.Model.Client
 				_tmpCoordinationServer = new CoordinationServer();
 				_coordinationClient = new CoordinationClient();
 			}
+
+			_sentToInvokeQueue = new QueueInvoker<InvokePacket>(_coordinationClient.SentToInvoke);
 		}
 
+		#endregion
+
+		#region Methods
+
+		/// <summary>
+		/// Вызов метода для исполнения.
+		/// </summary>
+		/// <typeparam name="T">Тип возвращаемых данных.</typeparam>
+		/// <param name="invoke_method">Исполняемый метод.</param>
+		/// <param name="input_params">Входные параметры.</param>
+		/// <returns>Результат вычисления.</returns>
 		public DataValue<T> Invoke<T>(InvokeMethod<T> invoke_method, params DataValue[] input_params)
 		{
 			var invoke_packet = new InvokePacket()
@@ -38,17 +66,14 @@ namespace Core.Model.Client
 				InvokeMethod = invoke_method,
 				InputParams = input_params
 			};
-			
-			var result = new DataValue<T>(invoke_packet.Guid);
+			_sentToInvokeQueue.Enqueue(invoke_packet);
 
-		/*	Task.Run(() =>
-			{*/
-				_coordinationClient.SentToInvoke(invoke_packet);
-			//});
-
-			return result;
+			return new DataValue<T>(invoke_packet.Guid);
 		}
 
+		/// <summary>
+		/// Удаляет временный координационный сервер.
+		/// </summary>
 		public override void Dispose()
 		{
 			base.Dispose();
@@ -57,5 +82,7 @@ namespace Core.Model.Client
 				_tmpCoordinationServer.Dispose();
 			}
 		}
+
+		#endregion
 	}
 }

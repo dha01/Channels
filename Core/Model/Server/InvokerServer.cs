@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Model.DataPacket;
@@ -22,21 +20,6 @@ namespace Core.Model.Server
 		/// Порт по умолчанию.
 		/// </summary>
 		public static int DefaultPort = 39998;
-
-		/// <summary>
-		/// Минимальное значение порта.
-		/// </summary>
-		private const int PORT_MIN = 30000;
-
-		/// <summary>
-		/// Максимальное значение порта.
-		/// </summary>
-		private const int PORT_MAX = 40000;
-
-		/// <summary>
-		/// Случайное значения порта.
-		/// </summary>
-		private static Random random = new Random(DateTime.Now.Millisecond);
 
 		/// <summary>
 		/// Клас для обмена данными с вычислительным узлом.
@@ -61,14 +44,14 @@ namespace Core.Model.Server
 		/// Задает случайный порт.
 		/// </summary>
 		public InvokerServer()
-			: this(random.Next(PORT_MIN, PORT_MAX))
+			: this(GetRandomPort())
 		{
 			// TODO : нужно корректно обработать случай если порт занят
 			Task.Run(() =>
 			{
 				while (true)
 				{
-					UdpPing();
+					UdpNotification();
 					Thread.Sleep(5000);
 				};
 			});

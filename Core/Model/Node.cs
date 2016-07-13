@@ -6,6 +6,9 @@ using System.Text;
 
 namespace Core.Model
 {
+	/// <summary>
+	/// Узел. Содержит данные, необходимы для однозначной идентификации сетевого узла.
+	/// </summary>
 	[Serializable]
 	public class Node
 	{

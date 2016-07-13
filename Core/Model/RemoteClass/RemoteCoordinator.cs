@@ -1,11 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using Core.Model.Client;
 using Core.Model.DataPacket;
-using Core.Model.Server;
 
 namespace Core.Model.RemoteClass
 {
@@ -21,66 +20,69 @@ namespace Core.Model.RemoteClass
 		/// </summary>
 		public List<Node> CalculativeServerList = new List<Node>();
 
-		private Dictionary<Node, InvokerClient> _invokerClients = new Dictionary<Node, InvokerClient>();
+		/// <summary>
+		/// Клиенты для вычислительных узлов.
+		/// </summary>
+		private readonly ConcurrentDictionary<Node, InvokerClient> _invokerClients = new ConcurrentDictionary<Node, InvokerClient>();
 
 		/// <summary>
 		/// Список результатов вычислений.
 		/// </summary>
-		private Dictionary<Guid, Node> _resultInfo = new Dictionary<Guid, Node>();
+		private readonly ConcurrentDictionary<Guid, Node> _resultInfo = new ConcurrentDictionary<Guid, Node>();
 
-		private static Random rand = new Random(DateTime.Now.Millisecond);
+		/// <summary>
+		/// Для выбра произвольного узла.
+		/// </summary>
+		private static readonly Random rand = new Random(DateTime.Now.Millisecond);
 
 		#endregion
 
+		#region Methods
+
+		/// <summary>
+		/// Выбирает узел для исполнения.
+		/// TODO: нужен будет механиз для выбора подходящего сервера, а не произвольного.
+		/// </summary>
+		/// <returns>Узел.</returns>
 		private Node SelectNode()
 		{
 			if (!CalculativeServerList.Any())
 			{
 				throw new Exception("Список доступных вычислительных узлов пуст.");
 			}
-			int index = rand.Next(0, CalculativeServerList.Count);
+			var index = rand.Next(0, CalculativeServerList.Count);
 
 			return CalculativeServerList[index];
 		}
 
 		/// <summary>
-		/// 
+		/// Подготавливает и отправляет пакет на исполнение на вычислительный узел.
 		/// </summary>
-		/// <param name="invoke_packet"></param>
+		/// <param name="invoke_packet">Исполняемый пакет.</param>
 		public void SentToInvoke(InvokePacket invoke_packet)
 		{
-			InvokerClient ic;
 			var node = SelectNode();
-			lock (_invokerClients)
+			
+			if (!_invokerClients.ContainsKey(node))
 			{
-				if (!_invokerClients.ContainsKey(node))
-				{
-					_invokerClients.Add(node, new InvokerClient(node));
-				}
-
-				ic = _invokerClients[node];
+				_invokerClients.TryAdd(node, new InvokerClient(node));
 			}
 
+			var ic = _invokerClients[node];
+
+			// Добавляет информацио о владельце данных, если он известен.
 			foreach (var param in invoke_packet.InputParams)
 			{
-				lock (_resultInfo)
+				if (_resultInfo.ContainsKey(param.Guid))
 				{
-					if (_resultInfo.ContainsKey(param.Guid))
-					{
-						param.OwnerNode = _resultInfo[param.Guid];
-						continue;
-					}
+					param.OwnerNode = _resultInfo[param.Guid];
+					continue;
 				}
 
 				param.OwnerNode = node;
 			}
-				
-			lock (_resultInfo)
-			{
-				_resultInfo.Add(invoke_packet.Guid, node);
-			}
 
-			//Console.WriteLine("Данные с id {0} будут на сервере {1}:{2}", invoke_packet.Guid, node.IpAddress, node.Port);
+			_resultInfo.TryAdd(invoke_packet.Guid, node);
 			ic.Invoke(invoke_packet);
 		}
 
@@ -95,12 +97,10 @@ namespace Core.Model.RemoteClass
 			while (count < 10)
 			{
 				// TODO: Нужно добавить механизм ожидания результата.
-				lock (_resultInfo)
+				
+				if (_resultInfo.ContainsKey(guid))
 				{
-					if (_resultInfo.ContainsKey(guid))
-					{
-						return new DataInfo(guid, _resultInfo[guid]);
-					}
+					return new DataInfo(guid, _resultInfo[guid]);
 				}
 				Thread.Sleep(500);
 				count++;
@@ -108,5 +108,7 @@ namespace Core.Model.RemoteClass
 
 			throw new Exception(string.Format("Данных с индификатором {0} не обнаружено.", guid));
 		}
+
+		#endregion
 	}
 }

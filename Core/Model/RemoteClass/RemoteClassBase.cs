@@ -1,24 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Runtime.Remoting;
-using System.Text;
-using Core.Model.Server;
 
 namespace Core.Model.RemoteClass
 {
+	/// <summary>
+	/// Базовый класс для работы с удаленными объектами.
+	/// </summary>
 	public class RemoteClassBase : MarshalByRefObject, IDisposable
 	{
-		public static int SCount = 0;
-		public int Count = 0;
-		protected static Dictionary<Guid, object> _objects = new Dictionary<Guid, object>();
-		private static Dictionary<string, RemoteClassBase> StaticConnects = new Dictionary<string, RemoteClassBase>();
+		#region Fields
 
+		/// <summary>
+		/// Список динамических объектов на сервере.
+		/// </summary>
+		protected static Dictionary<Guid, object> _objects = new Dictionary<Guid, object>();
+
+		/// <summary>
+		/// Список статических объектов на сервере.
+		/// </summary>
+		private static readonly Dictionary<string, RemoteClassBase> StaticConnects = new Dictionary<string, RemoteClassBase>();
+
+		/// <summary>
+		/// Является ли объект статическим.
+		/// </summary>
 		public bool IsStatic = false;
 
+		/// <summary>
+		/// Уникальный идентификатор.
+		/// </summary>
 		public Guid Guid { get; set; }
-		
+
+		#endregion
+
+		#region NewObjects
+
+		/// <summary>
+		/// Регистрирует новый удаленный объект со стороны сервера, а клиенту возвращает его уникальный идентификатор для подключения.
+		/// </summary>
+		/// <typeparam name="T">Тип удаленного объекта.</typeparam>
+		/// <returns>Уникальный идентификатор для подключения.</returns>
 		public Guid RegisterNewObject<T>() where T : RemoteClassBase
 		{
 			var guid = Guid.NewGuid();
@@ -31,52 +52,57 @@ namespace Core.Model.RemoteClass
 			return guid;
 		}
 
+		/// <summary>
+		/// Регистрирует статический объект со стороны сервера, а клиенту возвращает уже готовый к использованию объект,
+		/// для которого уже установлено соединение с сервером. 
+		/// </summary>
+		/// <typeparam name="T">Тип.</typeparam>
+		/// <param name="node">Узел сервера.</param>
+		/// <returns>Подключенный удаленный объект.</returns>
 		public static T StaticConnect<T>(Node node) where T : RemoteClassBase
 		{
-			var class_name = typeof(T).FullName;
 			T obj;
-			/*if (node.IpAddress.Equals(ServerBase.GetLocalIpAddress()) && ServerBase.Services.ContainsKey(class_name))
+			var str = String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof (T).FullName);
+			lock (StaticConnects)
 			{
-				obj = (T) ServerBase.Services[class_name];
-				obj.IsStatic = true;
-			}
-			else
-			{*/
-				var str = String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof (T).FullName);
-				lock (StaticConnects)
+				if (StaticConnects.ContainsKey(str))
 				{
-					if (StaticConnects.ContainsKey(str))
-					{
-						obj = (T)StaticConnects[str];
-					}
-					else
-					{
-						obj = (T)RemotingServices.Connect(typeof(T), str);
-						obj.IsStatic = true;
-						StaticConnects.Add(str, obj);
-					}
+					obj = (T)StaticConnects[str];
 				}
-			//}
-			//obj.Ping();
+				else
+				{
+					obj = (T)RemotingServices.Connect(typeof(T), str);
+					obj.IsStatic = true;
+					StaticConnects.Add(str, obj);
+				}
+			}
 			return obj;
 		}
 
+		/// <summary>
+		/// Регистрирует динамический объект со стороны сервера, а клиенту возвращает уже готовый к использованию объект,
+		/// для которого уже установлено соединение с сервером. 
+		/// </summary>
+		/// <typeparam name="T">Тип.</typeparam>
+		/// <param name="node">Узел сервера.</param>
+		/// <returns>Подключенный удаленный объект.</returns>
 		public static T Connect<T>(Node node) where T : RemoteClassBase
 		{
-			var class_name = typeof(T).FullName;
-
-			/*if (node.IpAddress.Equals(ServerBase.GetLocalIpAddress()) && ServerBase.Services.ContainsKey(class_name) && ServerBase.Services[class_name].Port == node.Port)
-			{
-				return (T)ServerBase.Services[class_name];
-			}*/
-			
-			var o = StaticConnect<RemoteClassBase>(node);//(RemoteClassBase)RemotingServices.Connect(typeof(RemoteClassBase), String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof(RemoteClassBase).FullName));
+			var o = StaticConnect<RemoteClassBase>(node);
 			var guid = o.RegisterNewObject<T>();
 
-			var obj = (T)RemotingServices.Connect(typeof(T), String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, guid));
+			var obj = (T)RemotingServices.Connect(typeof(T), string.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, guid));
 			return obj;
 		}
 
+		/// <summary>
+		/// Регистрирует динамический объект со стороны сервера, а клиенту возвращает уже готовый к использованию объект,
+		/// для которого уже установлено соединение с сервером. 
+		/// </summary>
+		/// <typeparam name="T">Тип.</typeparam>
+		/// <param name="ip_address">IP-адрес.</param>
+		/// <param name="port">Порт.</param>
+		/// <returns>Подключенный удаленный объект.</returns>
 		public static T Connect<T>(string ip_address, int port) where T : RemoteClassBase
 		{
 			return Connect<T>(new Node()
@@ -86,12 +112,23 @@ namespace Core.Model.RemoteClass
 			});
 		}
 
+		#endregion
+
+		#region Methods
+
+		/// <summary>
+		/// Пинг.
+		/// </summary>
+		/// <returns>Успех.</returns>
 		public bool Ping()
 		{
 			Console.WriteLine("Пинг");
 			return true;
 		}
 
+		/// <summary>
+		/// Закрывает соединение с объектом на сервере.
+		/// </summary>
 		public void Dispose()
 		{
 			if (!IsStatic)
@@ -101,10 +138,15 @@ namespace Core.Model.RemoteClass
 			}
 		}
 
+		/// <summary>
+		/// Закрывает соединение с объектом на сервере.
+		/// </summary>
 		~RemoteClassBase()
 		{
 			Dispose();
 		}
+
+		#endregion
 	}
 
 }

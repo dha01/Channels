@@ -1,53 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Core.Model.DataPacket;
 
-namespace Core.Model
+namespace Core.Model.DataPacket
 {
-	/// <summary>
-	/// Метод для исполнения с типом возвразаемого значения.
-	/// </summary>
-	/// <typeparam name="TResult">Тип данных возвращаемый методом.</typeparam>
-	[Serializable]
-	public class InvokeMethod<TResult> : InvokeMethod
-	{
-
-	}
-	
-	/// <summary>
-	/// Метод для исполнения.
-	/// </summary>
-	[Serializable]
-	public class InvokeMethod
-	{
-		/// <summary>
-		/// Путь к файлу.
-		/// </summary>
-		public string Path { get; set; }
-
-		/// <summary>
-		/// Названия типа.
-		/// </summary>
-		public string TypeName { get; set; }
-
-		/// <summary>
-		/// Название метода.
-		/// </summary>
-		public string MethodName { get; set; }
-	}
-
 	/// <summary>
 	/// Пакет для исполнения.
 	/// </summary>
 	[Serializable]
 	public class InvokePacket
 	{
-		private static long Counter = 0;
+		#region Fields
 
-		public long Priority = Counter++;
-		
 		/// <summary>
 		/// Уникаольный идентификатор.
 		/// </summary>
@@ -63,6 +25,10 @@ namespace Core.Model
 		/// </summary>
 		public DataValue[] InputParams { get; set; }
 
+		#endregion
+
+		#region Constructor
+
 		/// <summary>
 		/// Присваивает уникальный идентификатор.
 		/// </summary>
@@ -70,5 +36,7 @@ namespace Core.Model
 		{
 			Guid = Guid.NewGuid();
 		}
+
+		#endregion
 	}
 }

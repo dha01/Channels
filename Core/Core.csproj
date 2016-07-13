@@ -49,8 +49,13 @@
     <Compile Include="Model\Client\InvokerClient.cs" />
     <Compile Include="Model\CSharpDll.cs" />
     <Compile Include="Model\DataPacket\Data.cs" />
+    <Compile Include="Model\DataPacket\DataBase.cs" />
+    <Compile Include="Model\DataPacket\DataInfo.cs" />
+    <Compile Include="Model\DataPacket\DataValue.cs" />
+    <Compile Include="Model\DataPacket\InvokeMethod.cs" />
     <Compile Include="Model\DataPacket\InvokePacket.cs" />
     <Compile Include="Model\Node.cs" />
+    <Compile Include="Model\QueueInvoker.cs" />
     <Compile Include="Model\RemoteClass\RemoteCoordinator.cs" />
     <Compile Include="Model\Server\InvokerServer.cs" />
     <Compile Include="Model\Server\CoordinationServer.cs" />

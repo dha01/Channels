@@ -55,9 +55,9 @@ namespace Model
 		public int Sum(int a, int b, int c)
 		{
 			count++;
-
+			/*
 			Count++;
-			SCount++;
+			SCount++;*/
 			//Console.WriteLine(a + b + c);
 			return a + b + c;
 		}
