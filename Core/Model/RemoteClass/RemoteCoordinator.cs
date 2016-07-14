@@ -15,45 +15,14 @@ namespace Core.Model.RemoteClass
 	{
 		#region Fields
 
-		/// <summary>
-		/// Список доступных вычислитльных узлов.
-		/// </summary>
-		public List<Node> CalculativeServerList = new List<Node>();
-
-		/// <summary>
-		/// Клиенты для вычислительных узлов.
-		/// </summary>
-		private readonly ConcurrentDictionary<Node, InvokerClient> _invokerClients = new ConcurrentDictionary<Node, InvokerClient>();
-
-		/// <summary>
-		/// Список результатов вычислений.
-		/// </summary>
-		private readonly ConcurrentDictionary<Guid, Node> _resultInfo = new ConcurrentDictionary<Guid, Node>();
-
-		/// <summary>
-		/// Для выбра произвольного узла.
-		/// </summary>
-		private static readonly Random rand = new Random(DateTime.Now.Millisecond);
+		public Action<InvokePacket> OnEnqueuePacket;
+		public Func<Guid, DataBase> OnGetData;
+		public Action<Guid> OnRemoveDataInfo;
+		public List<Node> CalculativeServerList;
 
 		#endregion
 
 		#region Methods
-
-		/// <summary>
-		/// Выбирает узел для исполнения.
-		/// TODO: нужен будет механиз для выбора подходящего сервера, а не произвольного.
-		/// </summary>
-		/// <returns>Узел.</returns>
-		private Node SelectNode()
-		{
-			if (!CalculativeServerList.Any())
-			{
-				throw new Exception("Список доступных вычислительных узлов пуст.");
-			}
-			var index = rand.Next(0, CalculativeServerList.Count);
-
-			return CalculativeServerList[index];
-		}
 
 		/// <summary>
 		/// Подготавливает и отправляет пакет на исполнение на вычислительный узел.
@@ -61,29 +30,7 @@ namespace Core.Model.RemoteClass
 		/// <param name="invoke_packet">Исполняемый пакет.</param>
 		public void SentToInvoke(InvokePacket invoke_packet)
 		{
-			var node = SelectNode();
-			
-			if (!_invokerClients.ContainsKey(node))
-			{
-				_invokerClients.TryAdd(node, new InvokerClient(node));
-			}
-
-			var ic = _invokerClients[node];
-
-			// Добавляет информацио о владельце данных, если он известен.
-			foreach (var param in invoke_packet.InputParams)
-			{
-				if (_resultInfo.ContainsKey(param.Guid))
-				{
-					param.OwnerNode = _resultInfo[param.Guid];
-					continue;
-				}
-
-				param.OwnerNode = node;
-			}
-
-			_resultInfo.TryAdd(invoke_packet.Guid, node);
-			ic.Invoke(invoke_packet);
+			OnEnqueuePacket.Invoke(invoke_packet);
 		}
 
 		/// <summary>
@@ -93,20 +40,12 @@ namespace Core.Model.RemoteClass
 		/// <returns></returns>
 		public DataBase GetData(Guid guid)
 		{
-			int count = 0;
-			while (count < 10)
-			{
-				// TODO: Нужно добавить механизм ожидания результата.
-				
-				if (_resultInfo.ContainsKey(guid))
-				{
-					return new DataInfo(guid, _resultInfo[guid]);
-				}
-				Thread.Sleep(500);
-				count++;
-			}
+			return OnGetData.Invoke(guid);
+		}
 
-			throw new Exception(string.Format("Данных с индификатором {0} не обнаружено.", guid));
+		public void RemoveDataInfoata(Guid guid)
+		{
+			OnRemoveDataInfo.Invoke(guid);
 		}
 
 		#endregion

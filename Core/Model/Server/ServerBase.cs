@@ -161,9 +161,14 @@ namespace Core.Model.Server
 		/// <summary>
 		/// Закрывает открытые каналы связи.
 		/// </summary>
-		public void Dispose()
+		public virtual void Dispose()
 		{
-			RemotingServices.Disconnect(Services[GetType().FullName]);
+		/*	var name = typeof (RemoteClassBase).FullName;
+			if (Services.ContainsKey(name))
+			{
+				RemotingServices.Disconnect(Services[name]);
+				Services.Remove(name);
+			}*/
 		}
 
 		#endregion

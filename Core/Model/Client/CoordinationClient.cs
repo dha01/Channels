@@ -48,6 +48,11 @@ namespace Core.Model.Client
 			return _remoteCoordinator.GetData(guid);
 		}
 
+		public void RemoveDataInfo(Guid guid)
+		{
+			_remoteCoordinator.RemoveDataInfoata(guid);
+		}
+
 		public static Node GetLocalHost()
 		{
 			return new Node

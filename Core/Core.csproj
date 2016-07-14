@@ -56,6 +56,8 @@
     <Compile Include="Model\DataPacket\DataValueArray2D.cs" />
     <Compile Include="Model\DataPacket\InvokeMethod.cs" />
     <Compile Include="Model\DataPacket\InvokePacket.cs" />
+    <Compile Include="Model\Distributed.cs" />
+    <Compile Include="Model\Log.cs" />
     <Compile Include="Model\Node.cs" />
     <Compile Include="Model\QueueInvoker.cs" />
     <Compile Include="Model\RemoteClass\RemoteCoordinator.cs" />

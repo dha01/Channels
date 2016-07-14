@@ -14,12 +14,12 @@ namespace Core.Model.RemoteClass
 		/// <summary>
 		/// Список динамических объектов на сервере.
 		/// </summary>
-		protected static Dictionary<Guid, object> _objects = new Dictionary<Guid, object>();
+		public static Dictionary<Guid, object> _objects = new Dictionary<Guid, object>();
 
 		/// <summary>
 		/// Список статических объектов на сервере.
 		/// </summary>
-		private static readonly Dictionary<string, RemoteClassBase> StaticConnects = new Dictionary<string, RemoteClassBase>();
+		public static readonly Dictionary<string, RemoteClassBase> StaticConnects = new Dictionary<string, RemoteClassBase>();
 
 		/// <summary>
 		/// Является ли объект статическим.
@@ -79,6 +79,18 @@ namespace Core.Model.RemoteClass
 			return obj;
 		}
 
+		public static void Disconnect<T>(Node node)
+		{
+			var str = String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof(T).FullName);
+			lock (StaticConnects)
+			{
+				if (StaticConnects.ContainsKey(str))
+				{
+					StaticConnects.Remove(str);
+				}
+			}
+		}
+
 		/// <summary>
 		/// Регистрирует динамический объект со стороны сервера, а клиенту возвращает уже готовый к использованию объект,
 		/// для которого уже установлено соединение с сервером. 
@@ -131,11 +143,11 @@ namespace Core.Model.RemoteClass
 		/// </summary>
 		public void Dispose()
 		{
-			if (!IsStatic)
+		/*	if (!IsStatic)
 			{
 				_objects.Remove(Guid);
 				RemotingServices.Disconnect(this);
-			}
+			}*/
 		}
 
 		/// <summary>

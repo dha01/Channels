@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,6 +28,15 @@ namespace Core.Model
 		/// </summary>
 		private int QueueCount { get; set; }
 
+		private int CurQueueCount = 0;
+
+		private bool IsRun = true;
+
+		public int QueueLength
+		{
+			get { return _invokeQueue.Count; }
+		}
+
 		/// <summary>
 		/// Очередь на исполнение.
 		/// </summary>
@@ -53,7 +63,6 @@ namespace Core.Model
 
 		private Object _enqueueLock = new Object();
 		private Object _dequeueLock = new Object();
-
 		/// <summary>
 		/// Событие при извлечении из очереди.
 		/// </summary>
@@ -82,10 +91,6 @@ namespace Core.Model
 		{
 			QueueCount = queue_count;
 			OnDequeue += action;
-			for (var i = 0; i < QueueCount; i++)
-			{
-				AddQueue();
-			}
 			Run();
 		}
 
@@ -100,7 +105,8 @@ namespace Core.Model
 		public void Enqueue(T value)
 		{
 			_invokeQueue.Enqueue(value);
-			_manualResetEvent.Set();
+			AddQueue();
+
 			//_manualResetEvent.Set();
 
 /*			_enManualResetEvent.WaitOne();
@@ -146,7 +152,7 @@ namespace Core.Model
 		/// </summary>
 		public void Run()
 		{
-			_runManualResetEvent.Set();
+			IsRun = true;
 		}
 
 		/// <summary>
@@ -154,7 +160,7 @@ namespace Core.Model
 		/// </summary>
 		public void Stop()
 		{
-			_runManualResetEvent.Reset();
+			IsRun = false;
 		}
 
 		#endregion
@@ -166,29 +172,37 @@ namespace Core.Model
 		/// </summary>
 		private void AddQueue()
 		{
-			Task.Run(() =>
+			if (CurQueueCount < QueueCount && _invokeQueue.Count > CurQueueCount)
 			{
-				while (true)
+				Interlocked.Increment(ref CurQueueCount);
+				AddQueue();
+				Task.Run(() =>
 				{
-					T value;
-					if (_invokeQueue.TryDequeue(out value))
+					try
 					{
-						if (OnDequeue != null)
+						while (IsRun)
 						{
-							OnDequeue.Invoke(value);
+							T value;
+							if (_invokeQueue.TryDequeue(out value))
+							{
+								if (OnDequeue != null)
+								{
+									OnDequeue.Invoke(value);
+								}
+							}
+							else
+							{
+								Interlocked.Decrement(ref CurQueueCount);
+								break;
+							}
 						}
 					}
-					else
+					catch (Exception e)
 					{
-						if (_invokeQueue.Count == 0)
-						{
-							_manualResetEvent.Reset();
-						}
+						Console.WriteLine(e.Message);
 					}
-					_manualResetEvent.WaitOne();
-					_runManualResetEvent.WaitOne();
-				}
-			});
+				});
+			}
 		}
 
 		#endregion

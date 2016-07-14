@@ -49,10 +49,10 @@ namespace Core.Model.Client
 
 		public virtual void Dispose()
 		{
-			if (_remoteClassBase != null)
+		/*	if (_remoteClassBase != null)
 			{
 				_remoteClassBase.Dispose();
-			}
+			}*/
 		}
 	}
 }

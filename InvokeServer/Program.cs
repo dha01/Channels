@@ -22,10 +22,11 @@ namespace Server
 			ff = AppDomain.CurrentDomain.GetAssemblies();
 			using (var invoker_server = new InvokerServer())
 			{
+				//invoker_server.Stop();
 				Console.WriteLine("InvokerServer. {0}:{1}", invoker_server.Node.IpAddress, invoker_server.Node.Port);
-
 				while (true)
 				{
+					invoker_server.GetStatistic();
 					Console.WriteLine("Ок.");
 					Console.ReadKey();
 				}

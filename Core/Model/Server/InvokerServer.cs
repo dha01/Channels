@@ -36,6 +36,13 @@ namespace Core.Model.Server
 		/// </summary>
 		public ManualResetEvent _runQueueExecutor = new ManualResetEvent(false);
 
+
+
+		/// <summary>
+		/// Очередь отправки на исполнение.
+		/// </summary>
+		public readonly QueueInvoker<InvokePacket> _sentToInvokeQueue;
+
 		#endregion
 
 		#region Constructor
@@ -64,25 +71,43 @@ namespace Core.Model.Server
 		public InvokerServer(int port) : base(port)
 		{
 			_remoteInvoker = AddRemoteClassService<RemoteInvoker>();
+			/*RunQueueInvoker();
 			RunQueueInvoker();
 			RunQueueInvoker();
 			RunQueueInvoker();
-			RunQueueInvoker();
-			RunQueueInvoker();
-			_remoteInvoker.RunQueueExecutor = () => { _runQueueExecutor.Set(); };
+			RunQueueInvoker();*/
+			//_remoteInvoker.RunQueueExecutor = () => { _runQueueExecutor.Set(); };
+			_sentToInvokeQueue = new QueueInvoker<InvokePacket>(Invoke, 5);
+			_sentToInvokeQueue.OnDequeue += (p) => { Console.WriteLine("InvokerServer: Пакет извлечен из очереди: \r\n {0}", p.Guid); };
+			_remoteInvoker.OnInvoke += (p) => { _sentToInvokeQueue.Enqueue(p); };
+			_remoteInvoker.OnInvoke += (p) => { Console.WriteLine("InvokerServer: Получен пакет: \r\n {0}", p.Guid); };
 		}
 
 		#endregion
 
 		#region Methods / Public
 
+		public void GetStatistic()
+		{
+			Console.WriteLine("QueueLength: {0}", _sentToInvokeQueue.QueueLength);
+			Console.WriteLine("Results.Count: {0}", _remoteInvoker.Results.Count);
+			
+
+			if (_remoteInvoker.Results.Count > 0)
+			{
+				var item = _remoteInvoker.Results.First();
+				Console.WriteLine("item.Value.Data.Value: {0}", item.Value.Data.Value);
+				_remoteInvoker.Results.First().Value.ManualResetEvent.Set();
+			}
+		}
+/*
 		/// <summary>
 		/// Запускает очередь исполнения процедур.
 		/// </summary>
 		public void RunQueueInvoker()
 		{
 			Task.Run(() => { InvokeQueue(); });
-		}
+		}*/
 
 		/// <summary>
 		/// Исполняет метод и возвращает полученное значение.
@@ -142,7 +167,8 @@ namespace Core.Model.Server
 							Console.WriteLine("InParallel: {0}", e.Message);
 						}
 					});
-					_remoteInvoker.EnqueuePacket(invoke_packet);
+					//_remoteInvoker.EnqueuePacket(invoke_packet);
+					_sentToInvokeQueue.Enqueue(invoke_packet);
 				}
 				catch (Exception e)
 				{
@@ -151,6 +177,23 @@ namespace Core.Model.Server
 			});
 		}
 
+		private void Invoke(InvokePacket invoke_packet)
+		{
+			if (invoke_packet.InputParams.Any(x => !x.HasValue))
+			{
+				PrepareInputParams(invoke_packet);
+				return;
+			}
+
+			object[] input_params = invoke_packet.InputParams.ToList().Select(x => x.Value).ToArray();
+			var value = InvokeMethod(invoke_packet.InvokeMethod.Path, invoke_packet.InvokeMethod.TypeName, invoke_packet.InvokeMethod.MethodName, input_params);
+			var result = _remoteInvoker.Results[invoke_packet.Guid];
+
+			result.Data.Value = value;
+			Console.WriteLine("InvokerServer: Получен результат для пакета: {0}", invoke_packet.Guid);
+			result.ManualResetEvent.Set();
+		}
+/*
 		/// <summary>
 		/// Цикл исполнения процедур.
 		/// </summary>
@@ -192,6 +235,16 @@ namespace Core.Model.Server
 					Console.WriteLine("InWhile {0}", e.Message);
 				}
 			}
+		}*/
+
+		public void Run()
+		{
+			_sentToInvokeQueue.Run();
+		}
+
+		public void Stop()
+		{
+			_sentToInvokeQueue.Stop();
 		}
 
 		#endregion

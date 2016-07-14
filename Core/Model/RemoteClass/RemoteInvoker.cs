@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using Core.Model.Client;
 using Core.Model.DataPacket;
 
 namespace Core.Model.RemoteClass
@@ -40,27 +41,29 @@ namespace Core.Model.RemoteClass
 		/// <summary>
 		/// TODO: пределать на использование класса QueueInvoker
 		/// </summary>
-		public ConcurrentQueue<InvokePacket> InvokeQueue = new ConcurrentQueue<InvokePacket>();
-		public Action RunQueueExecutor;
+		//public ConcurrentQueue<InvokePacket> InvokeQueue = new ConcurrentQueue<InvokePacket>();
+		//public Action RunQueueExecutor;
+
+		public Action<InvokePacket> OnInvoke;
 
 		#endregion
 
 		#region Methods
-
+/*
 		/// <summary>
 		/// Добавляет пакет в очередь исполнения.
 		/// </summary>
 		/// <param name="invoke_packet">Пакет для исполнения.</param>
 		public void EnqueuePacket(InvokePacket invoke_packet)
 		{
-			InvokeQueue.Enqueue(invoke_packet);
+			//InvokeQueue.Enqueue(invoke_packet);
 			//Console.WriteLine("Очередь {0}", InvokeQueue.Count);
 			if (RunQueueExecutor != null)
 			{
 				RunQueueExecutor.Invoke();
 			}
 		}
-
+	*/
 		/// <summary>
 		/// Исполняет пакет.
 		/// </summary>
@@ -72,7 +75,8 @@ namespace Core.Model.RemoteClass
 				Data = new Data(invoke_packet.Guid),
 				ManualResetEvent = new ManualResetEvent(false)
 			});
-			EnqueuePacket(invoke_packet);
+			
+			OnInvoke.Invoke(invoke_packet);
 		}
 
 		/// <summary>
@@ -82,32 +86,24 @@ namespace Core.Model.RemoteClass
 		/// <returns></returns>
 		public Data GetData(Guid guid)
 		{
-			Console.WriteLine("Запрошен {0}", guid);
+			Console.WriteLine("RemoteInvoker: Запрошены данные: {0}", guid);
 			
-			ManualResetEvent me;
-			ResultItem result;
-			if (!Results.ContainsKey(guid))
+			ResultItem result = new ResultItem()
 			{
-				me = new ManualResetEvent(false);
-				
-				result = new ResultItem()
-				{
-					Data = new Data(guid),
-					ManualResetEvent = me
-				};
-				Results.TryAdd(guid, result);
-			}
-			else
-			{
-				result = Results[guid];
-			}
-			if (RunQueueExecutor != null)
-			{
-				RunQueueExecutor.Invoke();
-			}
+				Data = new Data(guid),
+				ManualResetEvent = new ManualResetEvent(false)
+			};
+			Results.TryAdd(guid, result);
+
+			result = Results[guid];
 			result.ManualResetEvent.WaitOne();
 			Results.TryRemove(result.Data.Guid, out result);
-			Console.WriteLine("Получен {0}", result.Data.Guid);
+			using (var cc = new CoordinationClient())
+			{
+				cc.RemoveDataInfo(result.Data.Guid);
+			}
+
+			Console.WriteLine("RemoteInvoker: Возвращены данные: {0}", result.Data.Guid);
 			return result.Data;
 		}
 

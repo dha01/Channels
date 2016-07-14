@@ -89,7 +89,7 @@ namespace Model
 				TypeName = "Model.Bot",
 				MethodName = "Mul",
 			};
-
+			
 			using (var cc = new CalculativeClient())
 			{
 				//cc._sentToInvokeQueue.Stop();

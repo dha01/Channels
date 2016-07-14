@@ -19,16 +19,23 @@ namespace Core.Model.Client
 		/// <summary>
 		/// Временный координационный сервер. 
 		/// </summary>
-		private readonly CoordinationServer _tmpCoordinationServer;
+		private static CoordinationServer _tmpCoordinationServer;
 
 		/// <summary>
 		/// Очередь отправки на исполнение.
 		/// </summary>
 		public readonly QueueInvoker<InvokePacket> _sentToInvokeQueue;
 
+		public Node RootCoordinationNode { get; set; }
+
 		#endregion
 
 		#region Constructor
+
+		public CalculativeClient(Node root_coordination_node) : this()
+		{
+			RootCoordinationNode = root_coordination_node;
+		}
 
 		/// <summary>
 		/// Создает экземпляр класса для клиента выполнения вычислений.
@@ -45,7 +52,10 @@ namespace Core.Model.Client
 				_coordinationClient = new CoordinationClient();
 			}
 
+			RootCoordinationNode = _coordinationClient.Node;
 			_sentToInvokeQueue = new QueueInvoker<InvokePacket>(_coordinationClient.SentToInvoke);
+
+			_sentToInvokeQueue.OnDequeue += (p) => { Console.WriteLine("CalculativeClient: Пакет извлечен из очереди на выполение: \r\n {0}", p.Guid);};
 		}
 
 		#endregion
@@ -67,8 +77,25 @@ namespace Core.Model.Client
 				InputParams = input_params
 			};
 			_sentToInvokeQueue.Enqueue(invoke_packet);
+			Console.WriteLine("CalculativeClient: Пакет помещен в очередь на выполение: \r\n {0}", invoke_packet.Guid);
 
-			return new DataValue<T>(invoke_packet.Guid);
+			var result = new DataValue<T>(invoke_packet.Guid)
+			{
+				RootCoordinationNode = RootCoordinationNode,
+				SenderNode = _coordinationClient.Node
+			};
+
+			return result;
+		}
+
+		public void Run()
+		{
+			_sentToInvokeQueue.Run();
+		}
+
+		public void Stop()
+		{
+			_sentToInvokeQueue.Stop();
 		}
 
 		/// <summary>
@@ -76,11 +103,15 @@ namespace Core.Model.Client
 		/// </summary>
 		public override void Dispose()
 		{
-			base.Dispose();
-			if (_tmpCoordinationServer != null)
+			/*if (_tmpCoordinationServer != null)
 			{
 				_tmpCoordinationServer.Dispose();
 			}
+
+			if (_coordinationClient != null)
+			{
+				_coordinationClient.Dispose();
+			}*/
 		}
 
 		#endregion

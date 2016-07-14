@@ -27,6 +27,11 @@ namespace Core.Model.DataPacket
 		/// <summary>
 		/// Вычислительный узел с результатами вычисления.
 		/// </summary>
+		public Node RootCoordinationNode { get; set; }
+		
+		/// <summary>
+		/// Вычислительный узел с результатами вычисления.
+		/// </summary>
 		public Node OwnerNode { get; set; }
 
 		/// <summary>
@@ -45,25 +50,25 @@ namespace Core.Model.DataPacket
 			{
 				return _value;
 			}
-
+			/*
 			// Известен конечный владелец данных.
 			if (OwnerNode != null)
 			{
-				using (var ic = new InvokerClient(OwnerNode))
+				using (var ic = new InvokerClient(RootCoordinationNode))
 				{
-					Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
+					Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, RootCoordinationNode.IpAddress, RootCoordinationNode.Port);
 					_value = ic.GetData(Guid).Value;
 					HasValue = true;
 					return _value;
 				}
-			}
+			}*/
 
 			// Необходимо узнать конечного владельца данных .
 			using (var cc = new CoordinationClient(SenderNode))
 			{
-				var data = cc.GetData(Guid);
-
-				if (data is DataInfo)
+				_value = cc.GetData(Guid).Value;
+				return _value;
+				/*if (data is DataInfo)
 				{
 					var data_info = (DataInfo)data;
 
@@ -74,7 +79,7 @@ namespace Core.Model.DataPacket
 						HasValue = true;
 						return _value;
 					}
-				}
+				}*/
 			}
 
 			throw new Exception("Непредвиденная ошибка при получении данных.");
@@ -282,17 +287,19 @@ namespace Core.Model.DataPacket
 		{
 			get
 			{
-				if (HasValue)
+				return (T)base.Value;
+
+				/*if (HasValue)
 				{
 					return (T)_value;
 				}
 
 				// Известен конечный владелец данных.
-				if (OwnerNode != null)
+				if (RootCoordinationNode != null)
 				{
-					using (var ic = new InvokerClient(OwnerNode))
+					using (var ic = new InvokerClient(RootCoordinationNode))
 					{
-						Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
+						Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, RootCoordinationNode.IpAddress, RootCoordinationNode.Port);
 						_value = ic.GetData(Guid).Value;
 						HasValue = true;
 						return (T)_value;
@@ -318,7 +325,7 @@ namespace Core.Model.DataPacket
 					}
 				}
 
-				throw new Exception("Непредвиденная ошибка при получении данных.");
+				throw new Exception("Непредвиденная ошибка при получении данных.");*/
 			}
 			set
 			{

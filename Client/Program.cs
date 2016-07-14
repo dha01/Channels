@@ -19,7 +19,7 @@ namespace Client
 {
 	class Program
 	{
-		private const int MATRIX_SIZE = 2;
+		private const int MATRIX_SIZE = 1000;
 
 
 		static int[][] Mul(int[][] a, int[][] b)
@@ -78,54 +78,41 @@ namespace Client
 					b[i][i2] = rand.Next(0, 100);
 				}
 			}
+
 			
-			
-			using (var cc = new CalculativeClient())
-			{
 				while (true)
 				{
-
-					Console.ReadKey();
+					using (var cc = new CalculativeClient())
+					{
+						Console.ReadKey();
 					System.Diagnostics.Stopwatch myStopwatch = new System.Diagnostics.Stopwatch();
 					myStopwatch.Start(); //запуск
-					/*
-					var sum2 = new InvokeMethod<int>()
+					DataValue gr = 0;
+
+					/*var sum = new InvokeMethod<int>()
 					{
 						Path = "../../../Model/bin/Debug/Model.dll",
 						TypeName = "Model.Bot",
-						MethodName = "Mul",
+						MethodName = "Sum",
 					};
-					var bb = new Bot();
+					for (int i = 0; i < 1000; i++)
+					{
+						
+						gr = cc.Invoke(sum, 1, 2, 3);
+						Console.WriteLine(gr.Value);
+					}*/
+						/*var bb = new Bot();
 
 					var x = bb.MulMatrix(a, b);*/
-
-					DataValue gr = 0;
+						
+					
 					var MulMatrix = new InvokeMethod<int[][]>()
 					{
 						Path = "../../../Model/bin/Debug/Model.dll",
 						TypeName = "Model.Bot",
 						MethodName = "MulMatrix",
 					};
-					//gr = cc.Invoke(MulMatrix, a, b);
-					/*for (int i = 0; i < 10; i++)
-					{*/
-						gr = cc.Invoke(MulMatrix, a, b);
-					//}
-					/*
-					DataValue gr = 0;
-					for (int i = 0; i < 1000; i++)
-					{
-						//var res1 = cc.Invoke(sum, 1, 2, 3);
-						var res2 = cc.Invoke(sum, 1, 1, 1);
-						var res3 = cc.Invoke(sum, 1, 1, 5);
-
-						gr = cc.Invoke(sum, gr, res2, res3);
-					}*/
-/*
-					var res1 = cc.Invoke(sum, 2, 3, 4);
-					var res2 = cc.Invoke(sum, 4, 5, 6);
-					var res3 = cc.Invoke(sum, 7, 8, 9);
-					var res4 = cc.Invoke(sum, res1, res2, res3);*/
+					gr = cc.Invoke(MulMatrix, a, b);
 
 
 
@@ -135,7 +122,10 @@ namespace Client
 					myStopwatch.Stop();
 
 					Console.WriteLine(myStopwatch.ElapsedMilliseconds);
-				}
+				//	var dd = RemoteClassBase._objects;
+					}
+				/*	GC.WaitForPendingFinalizers();
+					GC.Collect(1, GCCollectionMode.Forced);*/
 			}
 		}
 	}
