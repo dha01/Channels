@@ -42,6 +42,18 @@ namespace Core.Model
 		/// </summary>
 		private readonly ManualResetEvent _runManualResetEvent = new ManualResetEvent(false);
 
+		private readonly ManualResetEvent _enManualResetEvent = new ManualResetEvent(true);
+		private readonly ManualResetEvent _deManualResetEvent = new ManualResetEvent(true);
+
+		private T[] _circle = new T[100];
+
+		private int _enqueueIndex = 0;
+
+		private int _dequeueIndex = 0;
+
+		private Object _enqueueLock = new Object();
+		private Object _dequeueLock = new Object();
+
 		/// <summary>
 		/// Событие при извлечении из очереди.
 		/// </summary>
@@ -80,7 +92,7 @@ namespace Core.Model
 		#endregion
 
 		#region Methods / Public
-
+		
 		/// <summary>
 		/// Добавляет новый объект в очередь на исполнение.
 		/// </summary>
@@ -89,7 +101,45 @@ namespace Core.Model
 		{
 			_invokeQueue.Enqueue(value);
 			_manualResetEvent.Set();
+			//_manualResetEvent.Set();
+
+/*			_enManualResetEvent.WaitOne();
+			int cur_index;
+			lock (_enqueueLock)
+			{
+				cur_index = _enqueueIndex++;
+				_deManualResetEvent.Set();
+				if (_dequeueIndex % _circle.Length > _enqueueIndex % _circle.Length)
+				{
+					
+					_dequeueIndex--;
+				}
+			}
+			_circle[cur_index % _circle.Length] = value;
+
+			_manualResetEvent.Set();*/
 		}
+		/*
+		public T Dequeue()
+		{
+			_deManualResetEvent.WaitOne();
+
+			//_invokeQueue.Enqueue(result);
+			int cur_index;
+			lock (_dequeueLock)
+			{
+				cur_index = _dequeueIndex++;
+				if (_dequeueIndex >= _enqueueIndex)
+				{
+					_dequeueIndex--;
+					_deManualResetEvent.Reset();
+				}
+			}
+			T result = _circle[cur_index % _circle.Length];
+
+			_enManualResetEvent.Set();
+			return result;
+		}*/
 
 		/// <summary>
 		/// Запускает работу всех исполнителей.

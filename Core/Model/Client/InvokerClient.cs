@@ -23,25 +23,6 @@ namespace Core.Model.Client
 		{
 			_remoteInvoker = RemoteClassBase.Connect<RemoteInvoker>(ip_address, port);
 		}
-		/*
-		public object Invoke(string path, string type_name, string method_name, object[] param)
-		{
-			return _remoteInvoker.Invoke(path, type_name, method_name, param);
-		}*/
-		/*
-		public Data Invoke(InvokePacket invoke_packet)
-		{
-			return (Data)_remoteInvoker.Invoke(invoke_packet);
-		}
-
-		public Data Invoke(InvokeMethod invoke_method, Data[] input_params)
-		{
-			return new Data(_remoteInvoker.Invoke(new InvokePacket()
-			{
-				InvokeMethod = invoke_method,
-				InputParams = input_params
-			}));
-		}*/
 
 		public void Invoke(InvokePacket invoke_packet)
 		{

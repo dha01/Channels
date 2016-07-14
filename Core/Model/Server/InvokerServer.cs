@@ -65,6 +65,10 @@ namespace Core.Model.Server
 		{
 			_remoteInvoker = AddRemoteClassService<RemoteInvoker>();
 			RunQueueInvoker();
+			RunQueueInvoker();
+			RunQueueInvoker();
+			RunQueueInvoker();
+			RunQueueInvoker();
 			_remoteInvoker.RunQueueExecutor = () => { _runQueueExecutor.Set(); };
 		}
 
@@ -159,6 +163,7 @@ namespace Core.Model.Server
 					InvokePacket invoke_packet;
 					if (_remoteInvoker.InvokeQueue.TryDequeue(out invoke_packet))
 					{
+						//Console.WriteLine("Очередь {0}", _remoteInvoker.InvokeQueue.Count);
 						if (invoke_packet.InputParams.Any(x => !x.HasValue))
 						{
 							PrepareInputParams(invoke_packet);
@@ -180,6 +185,7 @@ namespace Core.Model.Server
 						}
 					}
 					_runQueueExecutor.WaitOne();
+					//Thread.Sleep(1000);
 				}
 				catch (Exception e)
 				{

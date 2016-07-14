@@ -1,9 +1,21 @@
 ﻿using System;
+using System.CodeDom;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Core.Model.Client;
 using Core.Model.Server;
 
 namespace Core.Model.DataPacket
 {
+	[Flags]
+	public enum DataState
+	{
+		Null			= 0x000000,
+		NotReduce		= 0x000001,
+		Debug			= 0x000010,
+		Save			= 0x000100
+	}
+	
 	/// <summary>
 	/// Клас осуществляющий получение результата из удаленного источника.
 	/// </summary>
@@ -22,51 +34,58 @@ namespace Core.Model.DataPacket
 		/// </summary>
 		public Node SenderNode { get; set; }
 
+		public object GetValue()
+		{
+			return GetValue(DataState.Null);
+		}
+
+		public object GetValue(DataState state)
+		{
+			if (HasValue)
+			{
+				return _value;
+			}
+
+			// Известен конечный владелец данных.
+			if (OwnerNode != null)
+			{
+				using (var ic = new InvokerClient(OwnerNode))
+				{
+					Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
+					_value = ic.GetData(Guid).Value;
+					HasValue = true;
+					return _value;
+				}
+			}
+
+			// Необходимо узнать конечного владельца данных .
+			using (var cc = new CoordinationClient(SenderNode))
+			{
+				var data = cc.GetData(Guid);
+
+				if (data is DataInfo)
+				{
+					var data_info = (DataInfo)data;
+
+					using (var ic = new InvokerClient(data_info.OwnerNode))
+					{
+						//Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
+						_value = ic.GetData(data_info.Guid).Value;
+						HasValue = true;
+						return _value;
+					}
+				}
+			}
+
+			throw new Exception("Непредвиденная ошибка при получении данных.");
+		}
+
 		/// <summary>
 		/// Значение.
 		/// </summary>
 		public new object Value
 		{
-			get
-			{
-				if (HasValue)
-				{
-					return _value;
-				}
-
-				// Известен конечный владелец данных.
-				if (OwnerNode != null)
-				{
-					using (var ic = new InvokerClient(OwnerNode))
-					{
-						Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
-						_value = ic.GetData(Guid).Value;
-						HasValue = true;
-						return _value;
-					}
-				}
-
-				// Необходимо узнать конечного владельца данных .
-				using (var cc = new CoordinationClient(SenderNode))
-				{
-					var data = cc.GetData(Guid);
-
-					if (data is DataInfo)
-					{
-						var data_info = (DataInfo)data;
-
-						using (var ic = new InvokerClient(data_info.OwnerNode))
-						{
-							Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
-							_value = ic.GetData(data_info.Guid).Value;
-							HasValue = true;
-							return _value;
-						}
-					}
-				}
-
-				throw new Exception("Непредвиденная ошибка при получении данных.");
-			}
+			get { return GetValue(); }
 			set
 			{
 				HasValue = true;
@@ -148,7 +167,100 @@ namespace Core.Model.DataPacket
 			return (int)obj.Value;
 		}
 
+		public static implicit operator DataValue(int[] obj)
+		{
+			return new DataValue(obj);
+		}
+
+		public static implicit operator int[](DataValue obj)
+		{
+			return (int[])obj.Value;
+		}
+
+		public static implicit operator DataValue(int[][] obj)
+		{
+			return new DataValue(obj);
+		}
+
+		public static implicit operator DataValue(DataValue[][] obj)
+		{
+			return new DataValue(ToArray<int>(obj));
+		}
+
+		public static implicit operator int[][](DataValue obj)
+		{
+			return (int[][])obj.Value;
+		}
+
+		/*public static implicit operator DataValue(DataValue[][] obj)
+		{
+			int size_x = obj.Length;
+			int size_y = 0;
+
+			if (size_x > 0)
+			{
+				size_y = obj[0].Length;
+			}
+
+			List<List<object>> result = new List<List<object>>(size_x);
+			
+			Parallel.For(0, size_x, (i) =>
+			{
+				result[i] = new List<object>(size_y);
+				Parallel.For(0, size_y, (j) =>
+				{
+					result[i][j] = obj[i][j].Value;
+				});
+			});
+
+			object[][] resul_o = new object[size_x][];
+
+			for (var i = 0; i < size_x; i++)
+			{
+				resul_o[i] = new object[size_y];
+				for (var j = 0; j < size_y; j++)
+				{
+					resul_o[i][j] = result[i][j];
+				}
+			}
+
+			return new DataValue(resul_o);
+		}*/
 		#endregion
+
+		public static T[][] ToArray<T>(DataValue[][] obj)
+		{
+			int size_x = obj.Length;
+			int size_y = 0;
+
+			if (size_x > 0)
+			{
+				size_y = obj[0].Length;
+			}
+
+			T[][] result = new T[size_x][];
+
+			Parallel.For(0, size_x, (int i) =>
+			{
+				result[i] = new T[size_y];
+				Parallel.For(0, size_y, (j) =>
+				{
+					Data o;
+					lock (obj)
+					{
+						o = obj[i][j];
+					}
+					var val = (T)((DataValue)o).Value;
+					Console.WriteLine("{0} {1} {2}", i, j, size_x * i + j);
+					lock (result)
+					{
+						result[i][j] = val;
+					}
+				});
+			});
+
+			return result;
+		}
 	}
 	
 	/// <summary>
@@ -161,13 +273,58 @@ namespace Core.Model.DataPacket
 	{
 		#region Fields
 
+
+
 		/// <summary>
 		/// Значение.
 		/// </summary>
 		public new T Value
 		{
-			get { return (T)base.Value; }
-			set { base.Value = value; }
+			get
+			{
+				if (HasValue)
+				{
+					return (T)_value;
+				}
+
+				// Известен конечный владелец данных.
+				if (OwnerNode != null)
+				{
+					using (var ic = new InvokerClient(OwnerNode))
+					{
+						Console.WriteLine("Ожидаются данные с id {0} с сервера {1}:{2}", Guid, OwnerNode.IpAddress, OwnerNode.Port);
+						_value = ic.GetData(Guid).Value;
+						HasValue = true;
+						return (T)_value;
+					}
+				}
+
+				// Необходимо узнать конечного владельца данных .
+				using (var cc = new CoordinationClient(SenderNode))
+				{
+					var data = cc.GetData(Guid);
+
+					if (data is DataInfo)
+					{
+						var data_info = (DataInfo)data;
+
+						using (var ic = new InvokerClient(data_info.OwnerNode))
+						{
+							//Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
+							_value = ic.GetData(data_info.Guid).Value;
+							HasValue = true;
+							return (T)_value;
+						}
+					}
+				}
+
+				throw new Exception("Непредвиденная ошибка при получении данных.");
+			}
+			set
+			{
+				HasValue = true;
+				_value = value;
+			}
 		}
 
 		#endregion
@@ -217,6 +374,11 @@ namespace Core.Model.DataPacket
 		#endregion
 
 		#region Implicit
+
+		public static implicit operator DataValue<T>(T obj)
+		{
+			return new DataValue<T>(obj);
+		}
 
 		public static implicit operator T(DataValue<T> obj)
 		{

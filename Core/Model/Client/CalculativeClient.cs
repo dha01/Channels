@@ -24,7 +24,7 @@ namespace Core.Model.Client
 		/// <summary>
 		/// Очередь отправки на исполнение.
 		/// </summary>
-		private readonly QueueInvoker<InvokePacket> _sentToInvokeQueue;
+		public readonly QueueInvoker<InvokePacket> _sentToInvokeQueue;
 
 		#endregion
 

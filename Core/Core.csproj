@@ -52,6 +52,8 @@
     <Compile Include="Model\DataPacket\DataBase.cs" />
     <Compile Include="Model\DataPacket\DataInfo.cs" />
     <Compile Include="Model\DataPacket\DataValue.cs" />
+    <Compile Include="Model\DataPacket\DataValueArray.cs" />
+    <Compile Include="Model\DataPacket\DataValueArray2D.cs" />
     <Compile Include="Model\DataPacket\InvokeMethod.cs" />
     <Compile Include="Model\DataPacket\InvokePacket.cs" />
     <Compile Include="Model\Node.cs" />

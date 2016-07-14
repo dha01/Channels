@@ -54,6 +54,7 @@ namespace Core.Model.RemoteClass
 		public void EnqueuePacket(InvokePacket invoke_packet)
 		{
 			InvokeQueue.Enqueue(invoke_packet);
+			//Console.WriteLine("Очередь {0}", InvokeQueue.Count);
 			if (RunQueueExecutor != null)
 			{
 				RunQueueExecutor.Invoke();
@@ -81,6 +82,8 @@ namespace Core.Model.RemoteClass
 		/// <returns></returns>
 		public Data GetData(Guid guid)
 		{
+			Console.WriteLine("Запрошен {0}", guid);
+			
 			ManualResetEvent me;
 			ResultItem result;
 			if (!Results.ContainsKey(guid))
@@ -98,7 +101,13 @@ namespace Core.Model.RemoteClass
 			{
 				result = Results[guid];
 			}
+			if (RunQueueExecutor != null)
+			{
+				RunQueueExecutor.Invoke();
+			}
 			result.ManualResetEvent.WaitOne();
+			Results.TryRemove(result.Data.Guid, out result);
+			Console.WriteLine("Получен {0}", result.Data.Guid);
 			return result.Data;
 		}
 
