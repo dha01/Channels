@@ -78,7 +78,7 @@ namespace Core.Model.RemoteClass
 			}
 			return obj;
 		}
-
+		/*
 		public static void Disconnect<T>(Node node)
 		{
 			var str = String.Format("tcp://{0}:{1}/{2}", node.IpAddress, node.Port, typeof(T).FullName);
@@ -89,7 +89,7 @@ namespace Core.Model.RemoteClass
 					StaticConnects.Remove(str);
 				}
 			}
-		}
+		}*/
 
 		/// <summary>
 		/// Регистрирует динамический объект со стороны сервера, а клиенту возвращает уже готовый к использованию объект,

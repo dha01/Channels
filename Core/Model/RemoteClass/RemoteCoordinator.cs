@@ -43,7 +43,7 @@ namespace Core.Model.RemoteClass
 			return OnGetData.Invoke(guid);
 		}
 
-		public void RemoveDataInfoata(Guid guid)
+		public void RemoveDataInfo(Guid guid)
 		{
 			OnRemoveDataInfo.Invoke(guid);
 		}

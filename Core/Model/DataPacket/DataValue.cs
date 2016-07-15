@@ -44,11 +44,24 @@ namespace Core.Model.DataPacket
 			return GetValue(DataState.Null);
 		}
 
+		private object ExceptionValue
+		{
+			get
+			{
+				var value = _value as Exception;
+				if (value != null)
+				{
+					throw value;
+				}
+				return _value;
+			}
+		}
+
 		public object GetValue(DataState state)
 		{
 			if (HasValue)
 			{
-				return _value;
+				return ExceptionValue;
 			}
 			/*
 			// Известен конечный владелец данных.
@@ -67,7 +80,7 @@ namespace Core.Model.DataPacket
 			using (var cc = new CoordinationClient(SenderNode))
 			{
 				_value = cc.GetData(Guid).Value;
-				return _value;
+				return ExceptionValue;
 				/*if (data is DataInfo)
 				{
 					var data_info = (DataInfo)data;

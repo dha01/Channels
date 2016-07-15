@@ -19,7 +19,7 @@ namespace Client
 {
 	class Program
 	{
-		private const int MATRIX_SIZE = 1000;
+		private const int MATRIX_SIZE = 100;
 
 
 		static int[][] Mul(int[][] a, int[][] b)
@@ -79,12 +79,13 @@ namespace Client
 				}
 			}
 
-			
+			using (var cc = new CalculativeClient())
+			using (var iss = new InvokerServer())
+			{
 				while (true)
 				{
-					using (var cc = new CalculativeClient())
-					{
-						Console.ReadKey();
+					
+					Console.ReadKey();
 					System.Diagnostics.Stopwatch myStopwatch = new System.Diagnostics.Stopwatch();
 					myStopwatch.Start(); //запуск
 					DataValue gr = 0;
@@ -118,7 +119,16 @@ namespace Client
 
 					//var res = sc.Invoke("../../../Model/bin/Debug/Model.dll", "Model.Bot", "Sum", new object[] { 1, 2, 3 });
 					Console.WriteLine("Ждем");
-					Console.WriteLine(gr.Value);
+
+						try
+						{
+							Console.WriteLine(gr.Value);
+						}
+						catch (Exception e)
+						{
+							Console.WriteLine(e.Message);
+						}
+					
 					myStopwatch.Stop();
 
 					Console.WriteLine(myStopwatch.ElapsedMilliseconds);

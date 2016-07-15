@@ -50,7 +50,7 @@ namespace Core.Model.Client
 
 		public void RemoveDataInfo(Guid guid)
 		{
-			_remoteCoordinator.RemoveDataInfoata(guid);
+			_remoteCoordinator.RemoveDataInfo(guid);
 		}
 
 		public static Node GetLocalHost()

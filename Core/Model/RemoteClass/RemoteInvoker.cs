@@ -38,32 +38,12 @@ namespace Core.Model.RemoteClass
 		/// </summary>
 		public ConcurrentDictionary<Guid, ResultItem> Results = new ConcurrentDictionary<Guid, ResultItem>();
 		
-		/// <summary>
-		/// TODO: пределать на использование класса QueueInvoker
-		/// </summary>
-		//public ConcurrentQueue<InvokePacket> InvokeQueue = new ConcurrentQueue<InvokePacket>();
-		//public Action RunQueueExecutor;
-
 		public Action<InvokePacket> OnInvoke;
 
 		#endregion
 
 		#region Methods
-/*
-		/// <summary>
-		/// Добавляет пакет в очередь исполнения.
-		/// </summary>
-		/// <param name="invoke_packet">Пакет для исполнения.</param>
-		public void EnqueuePacket(InvokePacket invoke_packet)
-		{
-			//InvokeQueue.Enqueue(invoke_packet);
-			//Console.WriteLine("Очередь {0}", InvokeQueue.Count);
-			if (RunQueueExecutor != null)
-			{
-				RunQueueExecutor.Invoke();
-			}
-		}
-	*/
+
 		/// <summary>
 		/// Исполняет пакет.
 		/// </summary>
@@ -96,7 +76,7 @@ namespace Core.Model.RemoteClass
 			Results.TryAdd(guid, result);
 
 			result = Results[guid];
-			result.ManualResetEvent.WaitOne();
+			result.ManualResetEvent.WaitOne(60000);
 			Results.TryRemove(result.Data.Guid, out result);
 			using (var cc = new CoordinationClient())
 			{

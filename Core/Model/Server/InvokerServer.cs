@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Model.Client;
 using Core.Model.DataPacket;
 using Core.Model.RemoteClass;
 
@@ -36,7 +37,8 @@ namespace Core.Model.Server
 		/// </summary>
 		public ManualResetEvent _runQueueExecutor = new ManualResetEvent(false);
 
-
+		private CoordinationServer _tmpCoordinationServer;
+		private CoordinationClient _coordinationClient;
 
 		/// <summary>
 		/// Очередь отправки на исполнение.
@@ -53,15 +55,7 @@ namespace Core.Model.Server
 		public InvokerServer()
 			: this(GetRandomPort())
 		{
-			// TODO : нужно корректно обработать случай если порт занят
-			Task.Run(() =>
-			{
-				while (true)
-				{
-					UdpNotification();
-					Thread.Sleep(5000);
-				};
-			});
+			
 		}
 
 		/// <summary>
@@ -70,13 +64,27 @@ namespace Core.Model.Server
 		/// <param name="port">Порт.</param>
 		public InvokerServer(int port) : base(port)
 		{
+			Task.Run(() =>
+			{
+				while (true)
+				{
+					UdpNotification();
+					Thread.Sleep(5000);
+				}
+			});
+			
+			try
+			{
+				_coordinationClient = new CoordinationClient();
+			}
+			catch (Exception)
+			{
+				_tmpCoordinationServer = new CoordinationServer();
+				_coordinationClient = new CoordinationClient();
+			}
+			
 			_remoteInvoker = AddRemoteClassService<RemoteInvoker>();
-			/*RunQueueInvoker();
-			RunQueueInvoker();
-			RunQueueInvoker();
-			RunQueueInvoker();
-			RunQueueInvoker();*/
-			//_remoteInvoker.RunQueueExecutor = () => { _runQueueExecutor.Set(); };
+
 			_sentToInvokeQueue = new QueueInvoker<InvokePacket>(Invoke, 5);
 			_sentToInvokeQueue.OnDequeue += (p) => { Console.WriteLine("InvokerServer: Пакет извлечен из очереди: \r\n {0}", p.Guid); };
 			_remoteInvoker.OnInvoke += (p) => { _sentToInvokeQueue.Enqueue(p); };
@@ -90,6 +98,7 @@ namespace Core.Model.Server
 		public void GetStatistic()
 		{
 			Console.WriteLine("QueueLength: {0}", _sentToInvokeQueue.QueueLength);
+			Console.WriteLine("CurQueueCount: {0}", _sentToInvokeQueue.CurQueueCount);
 			Console.WriteLine("Results.Count: {0}", _remoteInvoker.Results.Count);
 			
 
@@ -97,17 +106,9 @@ namespace Core.Model.Server
 			{
 				var item = _remoteInvoker.Results.First();
 				Console.WriteLine("item.Value.Data.Value: {0}", item.Value.Data.Value);
-				_remoteInvoker.Results.First().Value.ManualResetEvent.Set();
+				//_remoteInvoker.Results.First().Value.ManualResetEvent.Set();
 			}
 		}
-/*
-		/// <summary>
-		/// Запускает очередь исполнения процедур.
-		/// </summary>
-		public void RunQueueInvoker()
-		{
-			Task.Run(() => { InvokeQueue(); });
-		}*/
 
 		/// <summary>
 		/// Исполняет метод и возвращает полученное значение.
@@ -129,7 +130,15 @@ namespace Core.Model.Server
 			var t = a.GetType(type_name);
 			var m = t.GetMethod(method_name);
 			var obj = Activator.CreateInstance(t);
-			return m.Invoke(obj, param);
+
+			try
+			{
+				return m.Invoke(obj, param);
+			}
+			catch (Exception e)
+			{
+				return e.InnerException;
+			}
 		}
 
 		#endregion
@@ -193,49 +202,6 @@ namespace Core.Model.Server
 			Console.WriteLine("InvokerServer: Получен результат для пакета: {0}", invoke_packet.Guid);
 			result.ManualResetEvent.Set();
 		}
-/*
-		/// <summary>
-		/// Цикл исполнения процедур.
-		/// </summary>
-		private void InvokeQueue()
-		{
-			while (true)
-			{
-				try
-				{
-					InvokePacket invoke_packet;
-					if (_remoteInvoker.InvokeQueue.TryDequeue(out invoke_packet))
-					{
-						//Console.WriteLine("Очередь {0}", _remoteInvoker.InvokeQueue.Count);
-						if (invoke_packet.InputParams.Any(x => !x.HasValue))
-						{
-							PrepareInputParams(invoke_packet);
-							continue;
-						}
-
-						object[] input_params = invoke_packet.InputParams.ToList().Select(x => x.Value).ToArray();
-						var value = InvokeMethod(invoke_packet.InvokeMethod.Path, invoke_packet.InvokeMethod.TypeName, invoke_packet.InvokeMethod.MethodName, input_params);
-						var result = _remoteInvoker.Results[invoke_packet.Guid];
-
-						result.Data.Value = value;
-						result.ManualResetEvent.Set();
-					}
-					else
-					{
-						if (_remoteInvoker.InvokeQueue.Count == 0)
-						{
-							_runQueueExecutor.Reset();
-						}
-					}
-					_runQueueExecutor.WaitOne();
-					//Thread.Sleep(1000);
-				}
-				catch (Exception e)
-				{
-					Console.WriteLine("InWhile {0}", e.Message);
-				}
-			}
-		}*/
 
 		public void Run()
 		{

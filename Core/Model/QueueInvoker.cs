@@ -24,13 +24,21 @@ namespace Core.Model
 		#region Fields
 
 		/// <summary>
-		/// Количество исполнителей.
+		/// Максимальное количество исполнителей.
 		/// </summary>
-		private int QueueCount { get; set; }
+		public int MaxQueueCount { get; set; }
 
-		private int CurQueueCount = 0;
+		/// <summary>
+		/// Текущее число запущенных исполнителей.
+		/// </summary>
+		private int _curQueueCount;
 
-		private bool IsRun = true;
+		public int CurQueueCount
+		{
+			get { return _curQueueCount; }
+		}
+
+		private bool IsRun { get; set; }
 
 		public int QueueLength
 		{
@@ -43,30 +51,16 @@ namespace Core.Model
 		private readonly ConcurrentQueue<T> _invokeQueue = new ConcurrentQueue<T>();
 
 		/// <summary>
-		/// Отвечает за приостановку исполнения при отсутствии записей в очереди.
-		/// </summary>
-		private readonly ManualResetEvent _manualResetEvent = new ManualResetEvent(false);
-
-		/// <summary>
-		/// Отвечает за приостановку исполнения по требованию.
-		/// </summary>
-		private readonly ManualResetEvent _runManualResetEvent = new ManualResetEvent(false);
-
-		private readonly ManualResetEvent _enManualResetEvent = new ManualResetEvent(true);
-		private readonly ManualResetEvent _deManualResetEvent = new ManualResetEvent(true);
-
-		private T[] _circle = new T[100];
-
-		private int _enqueueIndex = 0;
-
-		private int _dequeueIndex = 0;
-
-		private Object _enqueueLock = new Object();
-		private Object _dequeueLock = new Object();
-		/// <summary>
 		/// Событие при извлечении из очереди.
 		/// </summary>
 		public Action<T> OnDequeue;
+
+		private ManualResetEvent me = new ManualResetEvent(false);
+		private object _lockObject = new object();
+
+		private Semaphore _semaphore;
+
+		private int QueueLengthCount;
 
 		#endregion
 
@@ -89,8 +83,10 @@ namespace Core.Model
 		/// <param name="queue_count">Число исполнителей.</param>
 		public QueueInvoker(Action<T> action, int queue_count)
 		{
-			QueueCount = queue_count;
+			MaxQueueCount = queue_count;
 			OnDequeue += action;
+			_semaphore = new Semaphore(0, int.MaxValue);
+			AddQueueInvoker();
 			Run();
 		}
 
@@ -105,54 +101,31 @@ namespace Core.Model
 		public void Enqueue(T value)
 		{
 			_invokeQueue.Enqueue(value);
-			AddQueue();
-
-			//_manualResetEvent.Set();
-
-/*			_enManualResetEvent.WaitOne();
-			int cur_index;
-			lock (_enqueueLock)
-			{
-				cur_index = _enqueueIndex++;
-				_deManualResetEvent.Set();
-				if (_dequeueIndex % _circle.Length > _enqueueIndex % _circle.Length)
-				{
-					
-					_dequeueIndex--;
-				}
-			}
-			_circle[cur_index % _circle.Length] = value;
-
-			_manualResetEvent.Set();*/
+			_semaphore.Release();
+			//Interlocked.Increment(ref QueueLengthCount);
 		}
 		/*
-		public T Dequeue()
+		private void R()
 		{
-			_deManualResetEvent.WaitOne();
-
-			//_invokeQueue.Enqueue(result);
-			int cur_index;
-			lock (_dequeueLock)
+			Task.Run(() =>
 			{
-				cur_index = _dequeueIndex++;
-				if (_dequeueIndex >= _enqueueIndex)
+				while (AddQueueInvoker() && _curQueueCount >= MaxQueueCount)
 				{
-					_dequeueIndex--;
-					_deManualResetEvent.Reset();
+					
 				}
-			}
-			T result = _circle[cur_index % _circle.Length];
-
-			_enManualResetEvent.Set();
-			return result;
+			});
 		}*/
 
 		/// <summary>
-		/// Запускает работу всех исполнителей.
+		/// Запускает работу исполнителей.
 		/// </summary>
 		public void Run()
 		{
 			IsRun = true;
+			/*if (_curQueueCount < QueueCount && AddQueueInvoker())
+			{
+				Run();
+			}*/
 		}
 
 		/// <summary>
@@ -161,47 +134,69 @@ namespace Core.Model
 		public void Stop()
 		{
 			IsRun = false;
+			//me.Reset();
 		}
 
 		#endregion
 
 		#region Methods / Private
-
-		/// <summary>
-		/// Добавляет нового исполнителя.
-		/// </summary>
-		private void AddQueue()
+		/*
+		private void Dequeue()
 		{
-			if (CurQueueCount < QueueCount && _invokeQueue.Count > CurQueueCount)
+			Task.Run(() =>
 			{
-				Interlocked.Increment(ref CurQueueCount);
-				AddQueue();
+				_semaphore.WaitOne();
+				T value;
+				if (!_invokeQueue.TryDequeue(out value)) return;
+				try
+				{
+					OnDequeue.Invoke(value);
+				}
+				catch (Exception e)
+				{
+					Console.WriteLine("QueueInvoker: ошибка при обрпботке элемента в очереди: {0}", e.Message);
+				}
+				_semaphore.Release();
+			});
+		}*/
+
+		//private List<KeyValuePair<ManualResetEvent, bool>> _queueStopper = new List<KeyValuePair<ManualResetEvent, bool>>(); 
+		private void AddQueueInvoker()
+		{
+			//var iv = Interlocked.Increment(ref _curQueueCount);
+			if (_curQueueCount < MaxQueueCount)
+			{
+				_curQueueCount++;
 				Task.Run(() =>
 				{
-					try
+					
+					while (/*IsRun && _invokeQueue.TryDequeue(out value)*/true)
 					{
-						while (IsRun)
+						_semaphore.WaitOne();
+						T value;
+						if(!_invokeQueue.TryDequeue(out value))
 						{
-							T value;
-							if (_invokeQueue.TryDequeue(out value))
-							{
-								if (OnDequeue != null)
-								{
-									OnDequeue.Invoke(value);
-								}
-							}
-							else
-							{
-								Interlocked.Decrement(ref CurQueueCount);
-								break;
-							}
+							_semaphore.Release();
+							Console.WriteLine("QueueInvoker: ошибка при извлечении элемента из очереди.");
+							continue;
+						}
+						try
+						{
+							OnDequeue.Invoke(value);
+						}
+						catch (Exception e)
+						{
+							Console.WriteLine("QueueInvoker: ошибка при обработке элемента в очереди: {0}", e.Message);
 						}
 					}
-					catch (Exception e)
+					/*Interlocked.Decrement(ref _curQueueCount);
+					Thread.Sleep(10);
+					if (_curQueueCount == 0 && _invokeQueue.Count > 0)
 					{
-						Console.WriteLine(e.Message);
-					}
+						AddQueueInvoker();
+					}*/
 				});
+				AddQueueInvoker();
 			}
 		}
 

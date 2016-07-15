@@ -96,6 +96,7 @@ namespace Core.Model.Server
 		/// <param name="port">Порт.</param>
 		public ServerBase(int port)
 		{
+			Port = port;
 			try
 			{
 				if (!_tcpServerChannels.ContainsKey(port))
@@ -105,7 +106,6 @@ namespace Core.Model.Server
 					ChannelServices.RegisterChannel(channel);
 					AddRemoteClassService(typeof(RemoteClassBase));
 				}
-				Port = port;
 			}
 			catch (Exception e)
 			{
@@ -154,7 +154,8 @@ namespace Core.Model.Server
 		/// </summary>
 		public void UdpNotification()
 		{
-			var message = Encoding.ASCII.GetBytes(string.Format("{0}:{1}:{2}", GetType().Name, Node.IpAddress, Node.Port));
+			var str = string.Format("{0}:{1}:{2}", GetType().Name, Node.IpAddress, Node.Port);
+			var message = Encoding.ASCII.GetBytes(str);
 			SendUdpMessage(message);
 		}
 

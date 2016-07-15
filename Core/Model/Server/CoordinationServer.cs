@@ -86,10 +86,34 @@ namespace Core.Model.Server
 			_remoteCoordinator.CalculativeServerList = CalculativeServerList;
 			_remoteCoordinator.OnRemoveDataInfo += RemoveDataInfo;
 
+			foreach (var node in CalculativeServerList)
+			{
+				AddInvokerClient(node);
+			}
+
 			StartUdpNotification();
 		}
 
 		#endregion
+
+		private void AddInvokerClient(Node node)
+		{
+			InvokerClient ic;
+			if (!_invokerClients.ContainsKey(node))
+			{
+				ic = new InvokerClient(node);
+				ic._queueInvokePacket.OnDequeue += (p) =>
+				{
+					if (_waitResult.ContainsKey(p.Guid))
+					{
+						ManualResetEvent me;
+						_waitResult.TryRemove(p.Guid, out me);
+						me.Set();
+					}
+				};
+				_invokerClients.TryAdd(node, ic);
+			}
+		}
 
 		#region Methods
 
@@ -124,11 +148,30 @@ namespace Core.Model.Server
 
 			
 			var ri = _resultInfo[guid];
-			using (var ic = new InvokerClient(ri))
+			AddInvokerClient(ri);
+			InvokerClient ic = _invokerClients[ri];
+			/*
+			if (!_invokerClients.ContainsKey(ri))
 			{
-				//Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
-				return ic.GetData(guid);
+				ic = new InvokerClient(ri);
+				ic._queueInvokePacket.OnDequeue += (p) =>
+				{
+					if (_waitResult.ContainsKey(p.Guid))
+					{
+						ManualResetEvent mee;
+						_waitResult.TryRemove(p.Guid, out mee);
+						me.Set();
+					}
+				};
+				_invokerClients.TryAdd(ri, ic);
 			}
+			else
+			{
+				ic = _invokerClients[ri];
+			}*/
+				//Console.WriteLine("По данным от координатора. Ожидаются данные с id {0} с сервера {1}:{2}", Guid, data_info.OwnerNode.IpAddress, data_info.OwnerNode.Port);
+			
+			return ic.GetData(guid);
 			/*
 			int count = 0;
 			while (count < 10)
@@ -166,13 +209,11 @@ namespace Core.Model.Server
 		{
 			var node = SelectNode();
 
-			InvokerClient ic;
-
+			InvokerClient ic = _invokerClients[node];
+			/*
 			if (!_invokerClients.ContainsKey(node))
 			{
 				ic = new InvokerClient(node);
-				_invokerClients.TryAdd(node, new InvokerClient(node));
-
 				ic._queueInvokePacket.OnDequeue += (p) =>
 				{
 					if (_waitResult.ContainsKey(p.Guid))
@@ -182,11 +223,13 @@ namespace Core.Model.Server
 						me.Set();
 					}
 				};
+
+				_invokerClients.TryAdd(node, ic);
 			}
 			else
 			{
 				ic = _invokerClients[node];
-			}
+			}*/
 			
 
 			// Добавляет информацио о владельце данных, если он известен.
@@ -208,7 +251,9 @@ namespace Core.Model.Server
 
 		public void AddInvokeServer(Node node)
 		{
+			AddInvokerClient(node);
 			CalculativeServerList.Add(node);
+			
 		}
 
 		#endregion
@@ -222,8 +267,8 @@ namespace Core.Model.Server
 		private void ReceiveUdpMessage(UdpClient udp_client)
 		{
 			IPEndPoint remote_ip = null;
-			while (!IsDisposed)
-			{
+			//while (!IsDisposed)
+			//{
 				var data = udp_client.Receive(ref remote_ip);
 
 				var message = Encoding.ASCII.GetString(data).Split(':');
@@ -268,7 +313,7 @@ namespace Core.Model.Server
 				}
 
 				//Console.WriteLine(message[0] + ":" + message[1] + ":" + message[2]);
-			}
+		//	}
 		}
 
 		/// <summary>
