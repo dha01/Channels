@@ -21,7 +21,7 @@ namespace Core.Model.RemoteClass
 			/// <summary>
 			/// Данные.
 			/// </summary>
-			public Data Data { get; set; }
+			public DataValue Data { get; set; }
 
 			/// <summary>
 			/// Событе означающие, что данные были получены.
@@ -52,10 +52,9 @@ namespace Core.Model.RemoteClass
 		{
 			Results.TryAdd(invoke_packet.Guid, new ResultItem()
 			{
-				Data = new Data(invoke_packet.Guid),
+				Data = new DataValue(invoke_packet.Guid),
 				ManualResetEvent = new ManualResetEvent(false)
 			});
-			
 			OnInvoke.Invoke(invoke_packet);
 		}
 
@@ -64,13 +63,13 @@ namespace Core.Model.RemoteClass
 		/// </summary>
 		/// <param name="guid"></param>
 		/// <returns></returns>
-		public Data GetData(Guid guid)
+		public DataValue GetData(Guid guid)
 		{
 			Console.WriteLine("RemoteInvoker: Запрошены данные: {0}", guid);
 			
 			ResultItem result = new ResultItem()
 			{
-				Data = new Data(guid),
+				Data = new DataValue(guid),
 				ManualResetEvent = new ManualResetEvent(false)
 			};
 			Results.TryAdd(guid, result);

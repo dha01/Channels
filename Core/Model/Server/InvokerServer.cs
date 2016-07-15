@@ -64,6 +64,7 @@ namespace Core.Model.Server
 		/// <param name="port">Порт.</param>
 		public InvokerServer(int port) : base(port)
 		{
+			// Тут это и должно быть.
 			Task.Run(() =>
 			{
 				while (true)
@@ -72,7 +73,7 @@ namespace Core.Model.Server
 					Thread.Sleep(5000);
 				}
 			});
-			
+			/*
 			try
 			{
 				_coordinationClient = new CoordinationClient();
@@ -81,14 +82,18 @@ namespace Core.Model.Server
 			{
 				_tmpCoordinationServer = new CoordinationServer();
 				_coordinationClient = new CoordinationClient();
-			}
+			}*/
 			
 			_remoteInvoker = AddRemoteClassService<RemoteInvoker>();
 
 			_sentToInvokeQueue = new QueueInvoker<InvokePacket>(Invoke, 5);
-			_sentToInvokeQueue.OnDequeue += (p) => { Console.WriteLine("InvokerServer: Пакет извлечен из очереди: \r\n {0}", p.Guid); };
-			_remoteInvoker.OnInvoke += (p) => { _sentToInvokeQueue.Enqueue(p); };
-			_remoteInvoker.OnInvoke += (p) => { Console.WriteLine("InvokerServer: Получен пакет: \r\n {0}", p.Guid); };
+			_sentToInvokeQueue.OnDequeue += (invoke_packet) => { Console.WriteLine("InvokerServer: Пакет извлечен из очереди: \r\n {0}", invoke_packet.Guid); };
+
+			_remoteInvoker.OnInvoke += (invoke_packet) =>
+			{
+				_sentToInvokeQueue.Enqueue(invoke_packet);
+			};
+			_remoteInvoker.OnInvoke += (invoke_packet) => { Console.WriteLine("InvokerServer: Получен пакет: \r\n {0}", invoke_packet.Guid); };
 		}
 
 		#endregion
@@ -105,7 +110,7 @@ namespace Core.Model.Server
 			if (_remoteInvoker.Results.Count > 0)
 			{
 				var item = _remoteInvoker.Results.First();
-				Console.WriteLine("item.Value.Data.Value: {0}", item.Value.Data.Value);
+				Console.WriteLine("item.Value.Data.Value: {0}", item.Value.Data.GetValue());
 				//_remoteInvoker.Results.First().Value.ManualResetEvent.Set();
 			}
 		}
@@ -164,16 +169,22 @@ namespace Core.Model.Server
 								return;
 							}
 							//TODO: Нужно будет обрабатывать отваоившиеся узлы.
+
+							Console.WriteLine("InParallel: {0}:{1}", x.OwnerNode.IpAddress, x.OwnerNode.Port);
 							if (_remoteInvoker.Results.ContainsKey(x.Guid))
 							{
-								x.Value = _remoteInvoker.GetData(x.Guid).Value;
+								x.Value = _remoteInvoker.GetData(x.Guid).GetValue();
+								x.HasValue = true;
 								return;
 							}
-							object re = x.Value;
+							Console.WriteLine("InParallel Value");
+							x.GetValue();
+							x.HasValue = true;
 						}
 						catch (Exception e)
 						{
 							Console.WriteLine("InParallel: {0}", e.Message);
+							throw;
 						}
 					});
 					//_remoteInvoker.EnqueuePacket(invoke_packet);
@@ -193,8 +204,8 @@ namespace Core.Model.Server
 				PrepareInputParams(invoke_packet);
 				return;
 			}
-
-			object[] input_params = invoke_packet.InputParams.ToList().Select(x => x.Value).ToArray();
+			
+			object[] input_params = invoke_packet.InputParams.ToList().Select(x => x.GetValue()).ToArray();
 			var value = InvokeMethod(invoke_packet.InvokeMethod.Path, invoke_packet.InvokeMethod.TypeName, invoke_packet.InvokeMethod.MethodName, input_params);
 			var result = _remoteInvoker.Results[invoke_packet.Guid];
 

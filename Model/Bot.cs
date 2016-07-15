@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Schema;
 using Core.Model;
 using Core.Model.Client;
 using Core.Model.DataPacket;
@@ -108,6 +109,35 @@ namespace Model
 			
 			int[][] x = result.Value;
 			return x;
+		}
+
+		public int[][] MulMatrixGood(int[][] a, int[][] b)
+		{
+			var size = a.Length;
+
+			var result = new int[size][];
+
+			int[][] bt = new int[size][];
+
+			for (int i = 0; i < size; ++i)
+			{
+				bt[i] = new int[size];
+				for (int j = 0; j < size; ++j)
+				{
+					bt[i][j] = b[j][i];
+				}
+			}
+			
+			for (var i = 0; i < size; i++)
+			{
+				result[i] = new int[size];
+				for (var j = 0; j < size; j++)
+				{
+					result[i][j] = Mul(a[i], bt[j]);
+				}
+			}
+
+			return result;
 		}
 
 		public int Sum(int a, int b, int c)

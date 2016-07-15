@@ -242,7 +242,7 @@ namespace Core.Model.Server
 				}
 
 				// Координационный узел отправивший пакет.
-				param.SenderNode = node;
+				param.SenderNode = Node;
 			}
 
 			_resultInfo.TryAdd(invoke_packet.Guid, node);

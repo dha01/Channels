@@ -76,10 +76,13 @@ namespace Core.Model.DataPacket
 				}
 			}*/
 
+			Console.WriteLine("DataValue.GetValue: SenderNode={0}:{1}", SenderNode.IpAddress, SenderNode.Port);
+
 			// Необходимо узнать конечного владельца данных .
 			using (var cc = new CoordinationClient(SenderNode))
 			{
 				_value = cc.GetData(Guid).Value;
+				Console.WriteLine("DataValue.GetValue: _value={0}", _value);
 				return ExceptionValue;
 				/*if (data is DataInfo)
 				{
